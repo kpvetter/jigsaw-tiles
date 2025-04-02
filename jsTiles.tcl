@@ -107,9 +107,9 @@ package require tls
 http::register https 443 [list ::tls::socket -tls1 1]
 package require tdom
 
-source src/wiki_potd.tcl
-source src/buttonlistbox.tcl
-source src/shadowborder.tcl
+source [file join [file dirname $argv0] src/wiki_potd.tcl]
+source [file join [file dirname $argv0] src/buttonlistbox.tcl]
+source [file join [file dirname $argv0] src/shadowborder.tcl]
 
 catch {namespace delete Baseshape}
 
@@ -234,7 +234,8 @@ set mono_font {"Courier New" 20}
 proc LoadShapes {} {
     # Load external shape source files
     if {[namespace exists Baseshape]} return
-    foreach fname [lsort -dictionary [glob -nocomplain shapes/*.shape]] {
+    set shape_glob [file join [file dirname $::argv0] shapes *.shape]
+    foreach fname [lsort -dictionary [glob -nocomplain $shape_glob]] {
         Logger "loading shape $fname"
         source $fname
     }

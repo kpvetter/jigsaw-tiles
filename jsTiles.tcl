@@ -144,11 +144,12 @@ set S(kill,after) ""
 set S(MOTIF) ""
 set S(maxWidth) [expr {int([winfo screenwidth .] * .75)}]
 set S(maxHeight) [expr {int([winfo screenheight .] * .8)}] ;# Get recalculated better below
+set S(filesystem,writable) [file writable .]
 
 set meta [dict create]
 
 set ST(color,shadows) 0
-set ST(preview,onoff) off
+set ST(preview,onoff) on
 set ST(difficulty,raw) -1
 set ST(inifile,onoff) off
 set ST(tallyfile,onoff) off   ;# Set true to keep a log of every potd image downloaded
@@ -2542,6 +2543,8 @@ proc Comma {num} {
 proc TallyUsage {who desc} {
     global S ST
 
+    if {! $S(filesystem,writable)} return
+
     if {$::tcl_platform(user) eq "kvetter" || $ST(tallyfile,onoff)} {
         set when [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S %A"]
         set fout [open $S(inifile,tally) "a"]
@@ -3207,6 +3210,7 @@ proc ::Favorites::Dialog {} {
     grid $parent -sticky news
     grid $body.buttons -pady .25i -sticky news
     pack $body.buttons.random $body.buttons.add -side left -expand 1
+    if {! $::S(filesystem,writable)} { destroy $body.buttons.add }
 
     set font [::ttk::style lookup [$parent cget -style] -font]
     set headers {Date Service Description}
@@ -3277,6 +3281,8 @@ proc ::Favorites::Add {} {
     global S FAVORITES
     variable TREE
     variable SORTED {}
+
+    if {! $S(filesystem,writable)} return
 
     set parent [expr {[winfo exists .favorites] ? ".favorites" : "."}]
     set potdname [expr {$S(potd,current) ne "" ? $S(potd,current) : $S(local,current)}]
@@ -3421,6 +3427,8 @@ proc SaveInifile {args} {
     global S ST
 
     if {! $ST(inifile,onoff)} return
+    if {! $S(filesystem,writable)} return
+
     Logger "Saving inifile $::S(inifile,file)"
 
     try {

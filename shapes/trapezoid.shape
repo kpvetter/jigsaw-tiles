@@ -1,0 +1,251 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# trapezoid -- cut the picture into trapezoid shaped tiles
+#
+catch {namespace delete ::Trapezoid}
+
+namespace eval ::Trapezoid {
+    variable SQ
+    variable _SQ
+    set _SQ(image,dir) "TBD"
+    set _SQ(target,size) 4
+    set _SQ(target,margin,left) 60
+    set _SQ(target,margin,top) 60
+    set _SQ(n,w) TBD
+    set _SQ(n,h) TBD
+    set _SQ(n,total) TBD
+    set _SQ(widen,factor) 5.0
+    variable NARROW_BOTTOM "NARROW_BOTTOM"
+    variable NARROW_TOP "NARROW_TOP"
+
+    variable TEMPLATES
+    set TEMPLATES(active,$NARROW_TOP) ::img::puzzle_ta_$NARROW_TOP
+    set TEMPLATES(drag,$NARROW_TOP) ::img::puzzle_td_$NARROW_TOP
+    set TEMPLATES(active,$NARROW_BOTTOM) ::img::puzzle_ta_$NARROW_BOTTOM
+    set TEMPLATES(drag,$NARROW_BOTTOM) ::img::puzzle_td_$NARROW_BOTTOM
+    set TEMPLATES(explode,$NARROW_TOP) ::img::puzzle_te_$NARROW_TOP
+    set TEMPLATES(explode,$NARROW_BOTTOM) ::img::puzzle_te_$NARROW_BOTTOM
+    set TEMPLATES(quest,$NARROW_TOP) ::img::puzzle_q_$NARROW_TOP
+    set TEMPLATES(quest,$NARROW_BOTTOM) ::img::puzzle_q_$NARROW_BOTTOM
+
+    proc CanDo {} {return [::Baseshape::_HasImageMagick]}
+
+    proc New {img itype tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+
+        set SQ(img) $img
+        set SQ(image,dir) $tempdir
+        set SQ(ext) [expr {$itype eq "png" ? ".png" : ".jpg"}]
+        set SQ(format) $itype
+
+        file mkdir $SQ(image,dir)
+
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Trapezoid::SplitImage {} {
+    variable SQ
+    variable NARROW_TOP
+    variable NARROW_BOTTOM
+
+    image delete {*}[info commands ::img::puzzle_*]
+    array unset SQ xy,*
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 1]
+    ::Baseshape::_ComputeUnitSquareSize $size $size
+
+    set SQ(sz,dx) [expr {round($SQ(sz,w) / $SQ(widen,factor))}]
+    set SQ(sz,dx2) [expr {round($SQ(sz,dx) / 2)}]
+    set SQ(sz,w2) [expr {$SQ(sz,w) + $SQ(sz,dx)}]
+
+    ::Trapezoid::_MakeTemplates
+
+    set idx -1
+    foreach row [range $SQ(n,h)] {
+	set y0 [expr {$SQ(margin,top) + $row * $SQ(sz,h)}]
+	set y1 [expr {$y0 + $SQ(sz,h)}]
+
+        foreach col [range $SQ(n,w)] {
+	    set x0 [expr {$SQ(margin,left) + $col * $SQ(sz,w) - $SQ(sz,dx2)}]
+	    set x1 [expr {$x0 + $SQ(sz,w) + $SQ(sz,dx)}]
+
+	    incr idx
+            set shape [expr {($row + $col) % 2 == 0 ? $NARROW_TOP : $NARROW_BOTTOM}]
+            set SQ(xy,$idx) [::Trapezoid::_ComputeXY $x0 $y0 $x1 $y1 $SQ(sz,dx) $shape]
+
+            ShowStatus "" "Cutting trapezoid tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Trapezoid::_CutShape $idx False
+	}
+    }
+    set frame_iname ::img::puzzle_frame
+    ::Trapezoid::_MakeFrame $frame_iname
+}
+proc ::Trapezoid::_CutShape {idx puzzle} {
+    # For each tile we need several images:
+    #  puzzle_g_# -- good: trapezoid tile with no adornments
+    #  puzzle_a_# -- active: trapezoid tile with its edge highlighted
+    #  puzzle_d_# -- drag: trapezoid tile with its edge highlighted for drag & drop
+    #  puzzle_e_# -- explode: trapezoid tile with red contents
+
+    variable SQ
+    variable TEMPLATES
+
+    lassign $SQ(xy,$idx) _ _ shape bbox
+
+    set w $SQ(sz,w2)
+    set h $SQ(sz,h)
+    set vertices [lindex [::Trapezoid::_ComputeXY 0 0 $w $h $SQ(sz,dx) $shape] 0]
+    set xy [lmap {x y} $vertices {return -level 0 "$x,$y"}]
+
+    set master_ifile [file join $SQ(image,dir) "master_${idx}$SQ(ext)"]
+    set good_ifile [file join $SQ(image,dir) "trapezoid_g_${idx}.png"]
+
+    set master_tile ::img::puzzle_master
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    image create photo $master_tile -width $w -height $h
+    $master_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $master_tile $master_tile
+    }
+
+    $master_tile write $master_ifile -format $SQ(format)
+    exec convert -size ${w}x${h} xc:none -fill white \
+        -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
+    image create photo $good_tile -file $good_ifile
+
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(active,$shape) $active_tile
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(drag,$shape) $drag_tile
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile
+        ::Baseshape::_AddQuestionMark $drag_tile
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile
+        $explode_tile copy $TEMPLATES(explode,$shape)
+    }
+
+    file delete $master_ifile
+    file delete $good_ifile
+}
+proc ::Trapezoid::_MakeTemplates {} {
+    # * Creates 4 outline images--each shape will get an active outline and drag outline
+    # * Creates 2 explode images--one for each shape
+    # * Creates 2 quest image
+
+    variable SQ
+    variable NARROW_TOP
+    variable NARROW_BOTTOM
+    variable TEMPLATES
+    ShowStatus "" "Cutting trapezoid templates" button=None
+
+    set w $SQ(sz,w2)
+    set h $SQ(sz,h)
+
+    set template_ifile [file join $SQ(image,dir) "template.png"]
+
+    foreach shape [list $NARROW_TOP $NARROW_BOTTOM] {
+
+        set active_template $TEMPLATES(active,$shape)
+        set drag_template $TEMPLATES(drag,$shape)
+        set explode_template $TEMPLATES(explode,$shape)
+        set quest_template $TEMPLATES(quest,$shape)
+
+        set coords [::Trapezoid::_ComputeXY 0 0 $w $h $SQ(sz,dx) $shape]
+        set pos [lindex $coords 0]
+        lassign $pos x0 y0 x1 y1 x2 y2 x3 y3
+        set xy "$x0,$y0 $x1,$y1 $x2,$y2 $x3,$y3"
+
+        exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+            -stroke $SQ(color,shade1) -draw "line $x3,$y3 $x0,$y0" \
+            -stroke $SQ(color,shade1) -draw "line $x0,$y0 $x1,$y1" \
+            -stroke $SQ(color,shade2) -draw "line $x1,$y1 $x2,$y2" \
+            -stroke $SQ(color,shade2) -draw "line $x2,$y2 $x3,$y3" \
+            $template_ifile
+        image create photo $active_template -file $template_ifile
+
+        exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+            -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
+        image create photo $drag_template -file $template_ifile
+
+        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,explode) -fill $SQ(color,explode) \
+            -draw "polygon $xy" $template_ifile
+        image create photo $explode_template -file $template_ifile
+
+        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,shade1) -fill $SQ(color,quest) \
+            -draw "polygon $xy" $template_ifile
+        image create photo $quest_template -file $template_ifile
+        ::Baseshape::_AddQuestionMark $quest_template
+    }
+
+    file delete $template_ifile
+}
+proc ::Trapezoid::_MakeFrame {frame_iname} {
+    variable SQ
+    ShowStatus "" "Making background image" button=None
+
+    set cols $SQ(n,w)
+    set rows $SQ(n,h)
+    set high $SQ(n,total)
+
+    set tiles [list 0 [expr {$cols-1}]]
+    lappend tiles {*}[range $cols-1 $high $cols]
+    lappend tiles [expr {$high - $cols}]
+    lappend tiles {*}[lreverse [range $cols $high-1 $cols]]
+
+    set corners [list 0 1]  ;# Top
+    lappend corners {*}[lrepeat $rows 2]   ;# Right
+    lappend corners 3
+    lappend corners {*}[lrepeat [expr {$rows - 1}] 0]
+
+    unset -nocomplain X Y
+    set xy ""
+    foreach tile $tiles corner $corners {
+        lassign [lindex $SQ(xy,$tile) 0] X(0) Y(0) X(1) Y(1) X(2) Y(2) X(3) Y(3)
+        foreach vertex $corner {
+            append xy "$X($vertex),$Y($vertex) "
+        }
+    }
+
+    set frame_ifile [file join $SQ(image,dir) "frame$SQ(ext)"]
+    set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
+    $SQ(img) write $image_ifile -format $SQ(format)
+
+    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+        "-draw" "polygon $xy" \
+        $image_ifile -compose SrcOut -composite $frame_ifile
+    image create photo $frame_iname -file $frame_ifile
+
+    file delete $frame_ifile
+    file delete $image_ifile
+}
+
+proc ::Trapezoid::_ComputeXY {x0 y0 x1 y1 dx narrow} {
+    variable NARROW_TOP
+
+    # Given the bbox of the trapezoid, returns coords of the trapezoid
+    set xc [expr {($x0 + $x1) / 2}]
+    set yc [expr {($y0 + $y1) / 2}]
+
+    if {$narrow eq $NARROW_TOP} {
+        set xy [list [expr {$x0 + $dx}] $y0 [expr {$x1 - $dx}] $y0]
+        lappend xy $x1 $y1 $x0 $y1
+    } else {
+        set xy [list $x0 $y0 $x1 $y0]
+        lappend xy [expr {$x1 - $dx}] $y1 [expr {$x0 + $dx}] $y1
+    }
+    set bbox [list $x0 $y0 $x1 $y1]
+    return [list $xy [list $xc $yc] $narrow $bbox]
+}
+proc ::Trapezoid::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Trapezoid::_CutShape $idx True
+}

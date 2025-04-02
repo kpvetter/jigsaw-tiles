@@ -1,0 +1,252 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# diamond -- Cut picture into diamond shaped tiles
+#
+catch {namespace delete ::Diamond}
+
+namespace eval ::Diamond {
+    variable _SQ
+    set _SQ(image,dir) "TBD"
+    set _SQ(target,size) 4
+    set _SQ(target,margin,left) 60
+    set _SQ(target,margin,top) 60
+
+    variable TEMPLATES
+    set TEMPLATES(active) ::img::puzzle_ta
+    set TEMPLATES(drag) ::img::puzzle_td
+    set TEMPLATES(explode) ::img::puzzle_te
+    set TEMPLATES(quest) ::img::puzzle_q_ALL
+
+    proc CanDo {} {return [::Baseshape::_HasImageMagick]}
+
+    proc New {img itype tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+
+        set SQ(img) $img
+        set SQ(image,dir) $tempdir
+        set SQ(ext) [expr {$itype eq "png" ? ".png" : ".jpg"}]
+        set SQ(format) $itype
+
+        file mkdir $SQ(image,dir)
+
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Diamond::SplitImage {} {
+
+    variable SQ
+
+    image delete {*}[info commands ::img::puzzle_*]
+    array unset SQ xy,*
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 1]
+    ::Baseshape::_ComputeUnitSquareSize $size $size
+    ::Diamond::_MakeTemplates
+
+    set SQ(n,total) [expr {$SQ(n,w) * $SQ(n,h) + ($SQ(n,w) - 1) * ($SQ(n,h) - 1)}]
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+    set xc [expr {$w / 2.0}]
+    set yc [expr {$h / 2.0}]
+    set SQ(xy,tile) "$xc,0 $w,$yc $xc,$h 0,$yc"
+
+    set NO_PUZZLE False
+    set idx -1
+    foreach row [range $SQ(n,h)] {
+	set y0 [expr {$SQ(margin,top) + $row * $SQ(sz,h)}]
+	set y1 [expr {$y0 + $SQ(sz,h)}]
+        set y [expr {($y0 + $y1) / 2}]
+
+	foreach col [range $SQ(n,w)] {
+	    set x0 [expr {$SQ(margin,left) + $col * $SQ(sz,w)}]
+	    set x1 [expr {$x0 + $SQ(sz,w)}]
+            set x [expr {($x0 + $x1) / 2}]
+
+            incr idx
+            set vertices [list $x $y0 $x1 $y $x $y1 $x0 $y]
+            set bbox [list $x0 $y0 $x1 $y1]
+            set SQ(xy,$idx) [list $vertices [list $x $y] ALL $bbox]
+
+            ShowStatus "" "Cutting diamond tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Diamond::_CutShape $idx $NO_PUZZLE
+	}
+    }
+
+    # Now for the nestled diamonds
+    foreach row [range $SQ(n,h)-1] {
+	set y0 [expr {$SQ(margin,top) + $row * $SQ(sz,h)}]
+	set y1 [expr {$y0 + $SQ(sz,h)}]
+        set y [expr {($y0 + $y1) / 2}]
+        set yy [expr {$y + $SQ(sz,h)}]
+
+        foreach col [range $SQ(n,w)-1] {
+	    set x0 [expr {$SQ(margin,left) + $col * $SQ(sz,w)}]
+	    set x1 [expr {$x0 + $SQ(sz,w)}]
+            set x [expr {($x0 + $x1) / 2}]
+            set xx [expr {$x + $SQ(sz,w)}]
+
+            incr idx
+            set vertices [list $x1 $y $xx $y1 $x1 $yy $x $y1]
+            set bbox [list $x $y $xx $yy]
+            set SQ(xy,$idx) [list $vertices [list $x1 $y1] ALL $bbox]
+
+            ShowStatus "" "Cutting diamond tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Diamond::_CutShape $idx $NO_PUZZLE
+        }
+    }
+    ::Diamond::_MakeFrame
+}
+proc ::Diamond::_CutShape {idx puzzle} {
+    # For each tile we need several images:
+    #  puzzle_g_# -- good: diamond tile with no adornments
+    #  puzzle_a_# -- active: diamond tile with its edge highlighted
+    #  puzzle_d_# -- drag: diamond tile with its edge highlighted for drag & drop
+    #  puzzle_e_# -- explode: diamond tile with red contents
+    # In puzzle mode, only active and drag and they'll be pixelated
+    #
+    variable SQ
+    variable TEMPLATES
+
+    set master_tile ::img::puzzle_tile
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    set bbox [lindex $SQ(xy,$idx) 3]
+    image create photo $master_tile -width $SQ(sz,w) -height $SQ(sz,h)
+    $master_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $master_tile $master_tile
+    }
+
+    ::Diamond::_ExactShape $master_tile $good_tile
+
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(active) $active_tile
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(drag) $drag_tile
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile
+        ::Baseshape::_AddQuestionMark $drag_tile
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile
+        $explode_tile copy $TEMPLATES(explode)
+    }
+}
+proc ::Diamond::_ExactShape {master_tile good_tile} {
+    variable SQ
+
+    set master_ifile [file join $SQ(image,dir) "master_tile$SQ(ext)"]
+    set good_ifile [file join $SQ(image,dir) "good_tile.png"]
+
+    set xy $SQ(xy,tile)
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+
+    $master_tile write $master_ifile -format $SQ(format)
+    exec convert -size ${w}x${h} xc:none -fill white \
+        -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
+    image create photo $good_tile -file $good_ifile
+
+    file delete $master_ifile
+    file delete $good_ifile
+}
+proc ::Diamond::_MakeFrame {} {
+    variable SQ
+    ShowStatus "" "Making background image" button=None
+
+    set frame_iname ::img::puzzle_frame
+
+    set high [expr {$SQ(n,w) * $SQ(n,h)}]
+    set w2 [expr {max(0, $SQ(n,w) - 2)}]
+    set h2 [expr {max(0, $SQ(n,h) - 2)}]
+
+    set tiles [range $SQ(n,w)]
+    lappend tiles {*}[range [expr {2 * $SQ(n,w) - 1}] $high-$SQ(n,w) $SQ(n,w)]
+    lappend tiles {*}[lreverse [range $high-$SQ(n,w) $high]]
+    lappend tiles {*}[lreverse [range $SQ(n,w) [lindex $tiles end]-1 $SQ(n,w)]]
+
+    set corners [list {2 3 0 1}]
+    lappend corners {*}[lrepeat $w2 {0 1}]
+    lappend corners {0 1 2}
+    lappend corners {*}[lrepeat $h2 {1 2}]
+    lappend corners {1 2 3}
+    lappend corners {*}[lrepeat $w2 {2 3}]
+    lappend corners {2 3 0}
+    lappend corners {*}[lrepeat $h2 {3 0}]
+
+    unset -nocomplain X Y
+    set xy ""
+    foreach tile $tiles corner $corners {
+        lassign [lindex $SQ(xy,$tile) 0] X(0) Y(0) X(1) Y(1) X(2) Y(2) X(3) Y(3)
+        foreach vertex $corner {
+            append xy "$X($vertex),$Y($vertex) "
+        }
+    }
+
+    set frame_ifile [file join $SQ(image,dir) "frame$SQ(ext)"]
+    set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
+    $SQ(img) write $image_ifile -format $SQ(format)
+
+    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+        "-draw" "polygon $xy" \
+        $image_ifile -compose SrcOut -composite $frame_ifile
+    image create photo $frame_iname -file $frame_ifile
+
+    file delete $frame_ifile
+    file delete $image_ifile
+}
+proc ::Diamond::_MakeTemplates {} {
+    # * Creates 2 outline images--an active outline and drag outline
+    # * Creates 1 explode image
+    # * Creates 1 quest image
+
+    variable SQ
+    variable TEMPLATES
+    ShowStatus "" "Cutting diamond templates" button=None
+
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+    set xc [expr {$w / 2.0}]
+    set yc [expr {$h / 2.0}]
+    set xy "$xc,0 $w,$yc $xc,$h 0,$yc"
+
+    set template_ifile [file join $SQ(image,dir) "template.png"]
+
+    set active_template $TEMPLATES(active)
+    set drag_template $TEMPLATES(drag)
+    set explode_template $TEMPLATES(explode)
+    set quest_template $TEMPLATES(quest)
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+        -stroke $SQ(color,shade1) -draw "line 0,$yc $xc,0" \
+        -stroke $SQ(color,shade1) -draw "line 0,$yc $xc,$h" \
+        -stroke $SQ(color,shade2) -draw "line $xc,$h $w,$yc" \
+        -stroke $SQ(color,shade2) -draw "line $xc,0 $w,$yc" \
+        $template_ifile
+    image create photo $active_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+        -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
+    image create photo $drag_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
+        -stroke $SQ(color,explode) -draw "polygon $xy" $template_ifile
+    image create photo $explode_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
+        -stroke $SQ(color,shade1) -draw "polygon $xy" $template_ifile
+    image create photo $quest_template -file $template_ifile
+    ::Baseshape::_AddQuestionMark $quest_template
+
+    file delete $template_ifile
+}
+proc ::Diamond::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Diamond::_CutShape $idx True
+}

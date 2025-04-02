@@ -1,0 +1,137 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# square -- cut the picture into square shaped tiles
+#
+catch {namespace delete ::Square}
+
+namespace eval ::Square {
+    variable _SQ
+    set _SQ(target,size) 4
+    set _SQ(target,margin,left) 60
+    set _SQ(target,margin,top) 60
+
+    proc CanDo {} { return True }
+
+    proc New {img _itype _tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+        set SQ(img) $img
+
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Square::SplitImage {} {
+    variable SQ
+
+    image delete {*}[info commands ::img::puzzle_*]
+    array unset SQ xy,*
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 1]
+    ::Baseshape::_ComputeUnitSquareSize $size $size
+
+    set idx -1
+    foreach row [range $SQ(n,h)] {
+        set y0 [expr {$SQ(margin,top) + $row * $SQ(sz,h)}]
+	set y1 [expr {$y0 + $SQ(sz,h)}]
+        set y [expr {($y0 + $y1) / 2}]
+
+	foreach col [range $SQ(n,w)] {
+	    set x0 [expr {$SQ(margin,left) + $col * $SQ(sz,w)}]
+	    set x1 [expr {$x0 + $SQ(sz,w)}]
+            set x [expr {($x0 + $x1) / 2}]
+
+	    incr idx
+            set xy [list $x0 $y0 $x1 $y0 $x1 $y1 $x0 $y1]
+            set bbox [list $x0 $y0 $x1 $y1]
+            set SQ(xy,$idx) [list $xy [list $x $y] ALL $bbox]
+
+            ShowStatus "" "Cutting square tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Square::_CutShape $idx False
+	}
+    }
+
+    ShowStatus "" "Making background image" button=None
+    set x0 $SQ(margin,left)
+    set y0 $SQ(margin,top)
+    set x1 [expr {$x0 + $SQ(n,w) * $SQ(sz,w)}]
+    set y1 [expr {$y0 + $SQ(n,h) * $SQ(sz,h)}]
+    ::Baseshape::_RectFrame $SQ(img) ::img::puzzle_frame $x0 $y0 $x1 $y1
+}
+proc ::Square::_CutShape {idx puzzle} {
+    variable SQ
+
+    set bbox [lindex $SQ(xy,$idx) 3]
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    image create photo $good_tile -width $w -height $h
+    $good_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $good_tile $good_tile
+    }
+
+    image create photo $active_tile -width $w -height $h
+    $active_tile copy $good_tile
+    ::Square::_OutlineTile $active_tile $SQ(color,shade1) $SQ(color,shade2)
+
+    image create photo $drag_tile -width $w -height $h
+    $drag_tile copy $good_tile
+    ::Square::_OutlineTile $drag_tile $SQ(color,shade2) $SQ(color,shade1)
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile
+        ::Baseshape::_AddQuestionMark $drag_tile
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile -width $w -height $h
+        $explode_tile put $SQ(color,explode) -to 0 0 $w $h
+    }
+    if {$idx == 0 && ! $puzzle} {
+        set quest_tile ::img::puzzle_q_ALL
+        image create photo $quest_tile -width $w -height $h
+        $quest_tile put $SQ(color,quest) -to 0 0 $w $h
+        ::Square::_OutlineTile $quest_tile $SQ(color,shade1) $SQ(color,shade2)
+
+        ::Baseshape::_AddQuestionMark $quest_tile
+    }
+}
+
+proc ::Square::_OutlineTile {img color1 color2} {
+    variable SQ
+
+    set w [image width $img]
+    set h [image height $img]
+    set z $SQ(strokewidth)
+
+    set w2 [expr {$w - $z}]
+    set h2 [expr {$h - $z}]
+
+    $img put $color1 -to 0 0 $w2 $z
+    $img put $color1 -to 0 0 $z $h
+
+    $img put $color2 -to $w2 0 $w $h
+    $img put $color2 -to $z $h2 $w $h
+}
+proc ::Square::XY2Tile {x y} {
+    variable SQ
+
+    foreach idx [range $SQ(n,total)] {
+        lassign [lindex $SQ(xy,$idx) 0] x0 y0 _ _ x1 y1
+        if {$x < $x0 || $x > $x1 || $y < $y0 || $y > $y1} continue
+        return $idx
+    }
+    return None
+}
+
+proc ::Square::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Square::_CutShape $idx True
+}

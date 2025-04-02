@@ -1,0 +1,215 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# ess -- cut the picture into ess shaped tiles
+#
+# target,size must be a multiple of 6
+#
+catch {namespace delete ::Ess}
+
+namespace eval ::Ess {
+    variable _SQ
+    set _SQ(target,size)  8
+    # set _SQ(target,h) 8 ;# Rounded up to an even number
+    # set _SQ(target,w) 9 ;# Round up/down to odd depending on aspect ratio
+    set _SQ(n,w) TBD
+    set _SQ(n,h) TBD
+    set _SQ(n,total) TBD
+    set _SQ(margin) 60
+
+    proc CanDo {} { return True }
+
+    proc New {img _itype _tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+
+        set SQ(img) $img
+
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Ess::SplitImage {} {
+    variable SQ
+
+    image delete {*}[info commands ::img::puzzle_*]
+    set SQ(w) [image width $SQ(img)]
+    set SQ(h) [image height $SQ(img)]
+
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 2]
+    set SQ(target,h) [expr {(($size + 1) / 2) * 2}]
+    set SQ(target,w) $size
+    if {$SQ(target,w) % 2 == 0} {
+        incr SQ(target,w) [expr {$SQ(w) > $SQ(h) ? +1 : -1}]
+    }
+    set SQ(n,w) $SQ(target,w)
+    set SQ(n,h) $SQ(target,h)
+    set SQ(unit,w) [expr {($SQ(w) - 2 * $SQ(margin)) / $SQ(n,w)}]
+    set SQ(unit,h) [expr {($SQ(h) - 2 * $SQ(margin)) / $SQ(n,h)}]
+    set SQ(n,total) [expr {($SQ(n,h) / 2) * (($SQ(n,w) - 1) / 2)}]
+    set SQ(n,rows) [llength [range 0 $SQ(n,h)-1 2]]
+    set SQ(n,cols) [llength [range 0 $SQ(n,w)-2 2]]
+
+    set dx0 [expr {0 * $SQ(unit,w)}]
+    set dx1 [expr {1 * $SQ(unit,w)}]
+    set dx2 [expr {2 * $SQ(unit,w)}]
+    set dx3 [expr {3 * $SQ(unit,w)}]
+    set dy0 [expr {0 * $SQ(unit,h)}]
+    set dy1 [expr {1 * $SQ(unit,h)}]
+    set dy2 [expr {2 * $SQ(unit,h)}]
+    set SQ(dxy) [list $dx0 $dx1 $dx2 $dx3 $dy0 $dy1 $dy2]
+
+    array unset SQ xy,*
+    set idx -1
+
+    foreach row [range 0 $SQ(n,h)-1 2] {
+        foreach col [range 0 $SQ(n,w)-2 2] {
+            set y0 [expr {$SQ(margin) + $row * $SQ(unit,h)}]
+	    set x0 [expr {$SQ(margin) + $col * $SQ(unit,w)}]
+
+            incr idx
+            set SQ(xy,$idx) [::Ess::CoordsAtXY $x0 $y0]
+            ShowStatus "" "Cutting ess tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Ess::_CutShape $idx False
+	}
+    }
+    ShowStatus "" "Making background image" button=None
+    ::Ess::_MakeFrame
+}
+proc ::Ess::_CutShape {idx puzzle} {
+    variable SQ
+
+    set master_tile ::img::puzzle_tile
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    lassign $SQ(xy,$idx) xy centers shape bbox
+    lassign $xy x0 y0 x2 _ _ y1 x3 _ _ y2 x1 _ _ _ _ _
+    lassign $SQ(dxy) dx0 dx1 dx2 dx3 dy0 dy1 dy2
+
+    set w $dx3
+    set h $dy2
+
+    image create photo $master_tile -width $w -height $h
+    $master_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $master_tile $master_tile
+    }
+
+    image create photo $good_tile -width $w -height $h
+    $good_tile copy $master_tile -from $dx0 $dy0 $dx2 $dy1 -to $dx0 $dy0
+    $good_tile copy $master_tile -from $dx1 $dy1 $dx3 $dy2 -to $dx1 $dy1
+    image delete $master_tile
+
+    image create photo $active_tile
+    $active_tile copy $good_tile
+    ::Ess::_OutlineTile $active_tile $SQ(color,shade2) $SQ(color,shade1)
+
+    image create photo $drag_tile
+    $drag_tile copy $good_tile
+    ::Ess::_OutlineTile $drag_tile $SQ(color,drag) $SQ(color,drag)
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile
+        ::Baseshape::_AddQuestionMark $drag_tile
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile -width $w -height $h
+        $explode_tile put $SQ(color,explode) -to $dx0 $dy0 $dx2 $dy1
+        $explode_tile put $SQ(color,explode) -to $dx1 $dy1 $dx3 $dy2
+    }
+
+    if {$idx == 0 && ! $puzzle} {
+        set quest_tile ::img::puzzle_q_ALL
+        image create photo $quest_tile -width $w -height $h
+        $quest_tile put $SQ(color,quest) -to $dx0 $dy0 $dx2 $dy1
+        $quest_tile put $SQ(color,quest) -to $dx1 $dy1 $dx3 $dy2
+
+        ::Ess::_OutlineTile $quest_tile $SQ(color,shade2) $SQ(color,shade1)
+
+        set qx [expr {max(0, ($dx0 + $dx3) / 2 - [image width ::img::quest] / 2)}]
+        set qy [expr {max(0, $dy1 - [image height ::img::quest] / 2)}]
+        $quest_tile copy ::img::quest -to $qx $qy
+    }
+
+}
+proc ::Ess::CoordsAtXY {x0 y0} {
+    variable SQ
+    lassign $SQ(dxy) dx0 dx1 dx2 dx3 dy0 dy1 dy2
+    set w $dx3
+    set h $dy2
+
+    set x1 [expr {$x0 + $dx1}]
+    set x2 [expr {$x0 + $dx2}]
+    set x3 [expr {$x0 + $dx3}]
+    set y1 [expr {$y0 + $dy1}]
+    set y2 [expr {$y0 + $dy2}]
+
+    set xy [list $x0 $y0 $x2 $y0 $x2 $y1 $x3 $y1 $x3 $y2 $x1 $y2 $x1 $y1 $x0 $y1]
+    set center [list [expr {($x0 + $x3) / 2}] [expr {($y0 + $y2) / 2}]]
+    set bbox [list $x0 $y0 $x3 $y2]
+    return [list $xy $center ALL $bbox]
+}
+
+proc ::Ess::_OutlineTile {img colorA colorB} {
+    variable SQ
+    lassign $SQ(dxy) dx0 dx1 dx2 dx3 dy0 dy1 dy2
+    set z $SQ(strokewidth)
+
+    $img put $colorA -to $dx0 $dy0 $dx2 [expr {$dy0+$z}]
+    $img put $colorA -to $dx2 $dy0 [expr {$dx2-$z}] [expr {$dy1+$z}]
+    $img put $colorA -to $dx2 $dy1 $dx3 [expr {$dy1+$z}]
+    $img put $colorA -to $dx3 $dy1 [expr {$dx3-$z}] $dy2
+    $img put $colorB -to $dx1 $dy2 $dx3 [expr {$dy2-$z}]
+    $img put $colorB -to $dx1 $dy1 [expr {$dx1+$z}] $dy2
+    $img put $colorB -to $dx0 $dy1 [expr {$dx1+$z}] [expr {$dy1-$z}]
+    $img put $colorB -to $dx0 $dy0 [expr {$dx0+$z}] $dy1
+}
+
+proc ::Ess::XY2Tile {x y} {
+    variable SQ
+
+    foreach idx [range $SQ(n,total)] {
+        set xy [lindex $SQ(xy,$idx) 0]
+        lassign $xy x0 y0 x2 _ _ y1 x3 _ _ y2 x1 _ _ _ _ _
+
+        if {$x >= $x0 && $x <= $x2 && $y >= $y0 && $y <= $y1} { return $idx }
+        if {$x >= $x1 && $x <= $x3 && $y >= $y1 && $y <= $y2} { return $idx }
+    }
+    return None
+}
+proc ::Ess::_MakeFrame {} {
+    variable SQ
+
+    set source $SQ(img)
+    set dest ::img::puzzle_frame
+
+    set w [image width $source]
+    set h [image height $source]
+
+    set tl 0
+    set tr [expr {$SQ(n,cols) - 1}]
+    set bl [expr {($SQ(n,rows) - 1) * $SQ(n,cols)}]
+    set br [expr {$SQ(n,rows) * $SQ(n,cols) - 1}]
+
+    lassign [lindex $SQ(xy,$tl) 0] x0 y0
+    lassign [lindex $SQ(xy,$br) 0] _ _ _ _ _ _ _ _ x1 y1
+    ::Baseshape::_RectFrame $source $dest $x0 $y0 $x1 $y1
+
+    foreach left_idx [range 0 $bl+1 $SQ(n,cols)] {
+        lassign [lindex $SQ(xy,$left_idx) 0] x0 y0 x1 y1 x2 y2 x3 y3 x4 y4 x5 y5 x6 y6 x7 y7
+        $dest copy $source -from $x7 $y7 $x5 $y5 -to $x7 $y7
+
+        set right_idx [expr {$left_idx + $SQ(n,cols) - 1}]
+        lassign [lindex $SQ(xy,$right_idx) 0] x0 y0 x1 y1 x2 y2 x3 y3 x4 y4 x5 y5 x6 y6 x7 y7
+        $dest copy $source -from $x1 $y1 $x3 $y3 -to $x1 $y1
+    }
+}
+proc ::Ess::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Ess::_CutShape $idx True
+}

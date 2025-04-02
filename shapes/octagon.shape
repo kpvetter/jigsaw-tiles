@@ -1,0 +1,243 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# octagon -- cut the picture into octagon shaped tiles
+#
+catch {namespace delete ::Octagon}
+
+namespace eval ::Octagon {
+    variable _SQ
+    set _SQ(image,dir) "TBD"
+    set _SQ(target,size) 4
+    set _SQ(target,margin,left) 60
+    set _SQ(target,margin,top) 60
+
+    variable TEMPLATES
+    set TEMPLATES(active) ::img::puzzle_ta
+    set TEMPLATES(drag) ::img::puzzle_td
+    set TEMPLATES(explode) ::img::puzzle_te
+    set TEMPLATES(quest) ::img::puzzle_q_ALL
+
+    proc CanDo {} {return [::Baseshape::_HasImageMagick]}
+
+    proc New {img itype tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+
+        set SQ(img) $img
+        set SQ(image,dir) $tempdir
+        set SQ(ext) [expr {$itype eq "png" ? ".png" : ".jpg"}]
+        set SQ(format) $itype
+
+        file mkdir $SQ(image,dir)
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Octagon::SplitImage {} {
+    variable SQ
+
+    image delete {*}[info commands ::img::puzzle_*]
+    array unset SQ xy,*
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 1]
+    ::Baseshape::_ComputeUnitSquareSize $size $size
+    ::Octagon::_MakeTemplates
+
+    set idx -1
+
+    foreach row [range $SQ(n,h)] {
+        set y0 [expr {$SQ(margin,top) + $row * $SQ(sz,h)}]
+	set y1 [expr {$y0 + $SQ(sz,h)}]
+
+        foreach col [range $SQ(n,w)] {
+	    set x0 [expr {$SQ(margin,left) + $col * $SQ(sz,w)}]
+	    set x1 [expr {$x0 + $SQ(sz,w)}]
+            set bbox [list $x0 $y0 $x1 $y1]
+
+	    incr idx
+            lassign [::Octagon::_CoordsAtXY $x0 $y0] xy center
+            set SQ(xy,$idx) [list $xy $center ALL $bbox]
+
+            ShowStatus "" "Cutting octagon tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Octagon::_CutShape $idx False
+	}
+    }
+    set frame_iname ::img::puzzle_frame
+    ::Octagon::_MakeFrame $frame_iname
+}
+proc ::Octagon::_CutShape {idx puzzle} {
+    # For each tile we need several images:
+    #  puzzle_g_# -- good: octagon tile with no adornments
+    #  puzzle_a_# -- active: octagon tile with its edge highlighted
+    #  puzzle_d_# -- drag: octagon tile with its edge highlighted for drag & drop
+    #  puzzle_e_# -- explode: octagon tile with red contents
+
+    variable SQ
+    variable TEMPLATES
+
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+    set bbox [lindex $SQ(xy,$idx) 3]
+
+    lassign [::Octagon::_CoordsAtXY 0 0] pos center
+    set xy [lmap {x y} $pos {return -level 0 "$x,$y"}]
+
+    set master_tile ::img::puzzle_tile
+    set master_ifile [file join $SQ(image,dir) "master_${idx}$SQ(ext)"]
+    set good_ifile [file join $SQ(image,dir) "octagon_g_${idx}.png"]
+
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    image create photo $master_tile -width $SQ(sz,w) -height $SQ(sz,h)
+    $master_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $master_tile $master_tile
+    }
+
+    $master_tile write $master_ifile -format $SQ(format)
+    exec convert -size ${w}x${h} xc:none -fill white \
+        -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
+    image create photo $good_tile -file $good_ifile
+
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(active) $active_tile
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(drag) $drag_tile
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile
+        ::Baseshape::_AddQuestionMark $drag_tile
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile
+        $explode_tile copy $TEMPLATES(explode)
+    }
+
+    file delete $master_ifile
+    file delete $good_ifile
+}
+proc ::Octagon::_MakeTemplates {} {
+    # * Creates 2 outline images--an active outline and drag outline
+    # * Creates 1 explode image
+    # * Creates 1 quest image
+
+    variable SQ
+    variable TEMPLATES
+    ShowStatus "" "Cutting octagon templates" button=None
+
+    set template_ifile [file join $SQ(image,dir) "template.png"]
+
+    set active_template $TEMPLATES(active)
+    set drag_template $TEMPLATES(drag)
+    set explode_template $TEMPLATES(explode)
+    set quest_template $TEMPLATES(quest)
+
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+
+    lassign [::Octagon::_CoordsAtXY 0 0] pos center
+    lassign $pos x0 y1 x1 y0 x2 _ x3 _ _ y2 _ y3 _ _ _ _
+    set xy [lmap {x y} $pos {return -level 0 "$x,$y"}]
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+        -stroke $SQ(color,shade1) -draw "line $x2,$y3 $x2,$y3" \
+        -stroke $SQ(color,shade1) -draw "line $x1,$y3 $x0,$y2" \
+        -stroke $SQ(color,shade1) -draw "line $x0,$y2 $x0,$y1" \
+        -stroke $SQ(color,shade1) -draw "line $x0,$y1 $x1,$y0" \
+        -stroke $SQ(color,shade2) -draw "line $x1,$y0 $x2,$y0" \
+        -stroke $SQ(color,shade2) -draw "line $x2,$y0 $x3,$y1" \
+        -stroke $SQ(color,shade2) -draw "line $x3,$y1 $x3,$y2" \
+        -stroke $SQ(color,shade2) -draw "line $x3,$y2 $x2,$y3" \
+        $template_ifile
+    image create photo $active_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+        -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
+    image create photo $drag_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
+        -stroke $SQ(color,explode) -draw "polygon $xy" $template_ifile
+    image create photo $explode_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
+        -stroke $SQ(color,shade1) -draw "polygon $xy" $template_ifile
+    image create photo $quest_template -file $template_ifile
+    ::Baseshape::_AddQuestionMark $quest_template
+
+    file delete $template_ifile
+}
+proc ::Octagon::_MakeActiveDragTiles {good_ifile active_tile drag_tile} {
+    variable SQ
+
+    set active_ifile [file join $SQ(image,dir) "octagon_a_blur.png"]
+    set drag_ifile [file join $SQ(image,dir) "octagon_d_blur.png"]
+
+    lassign [::Octagon::_CoordsAtXY 0 0] pos center
+    lassign $pos x0 y1 x1 y0 x2 _ x3 _ _ y2 _ y3 _ _ _ _
+    set xy [lmap {x y} $pos {return -level 0 "$x,$y"}]
+
+    exec convert $good_ifile -fill transparent -strokewidth $SQ(strokewidth) \
+        -stroke $SQ(color,shade1) -draw "line $x2,$y3 $x2,$y3" \
+        -stroke $SQ(color,shade1) -draw "line $x1,$y3 $x0,$y2" \
+        -stroke $SQ(color,shade1) -draw "line $x0,$y2 $x0,$y1" \
+        -stroke $SQ(color,shade1) -draw "line $x0,$y1 $x1,$y0" \
+        -stroke $SQ(color,shade2) -draw "line $x1,$y0 $x2,$y0" \
+        -stroke $SQ(color,shade2) -draw "line $x2,$y0 $x3,$y1" \
+        -stroke $SQ(color,shade2) -draw "line $x3,$y1 $x3,$y2" \
+        -stroke $SQ(color,shade2) -draw "line $x3,$y2 $x2,$y3" \
+        $active_ifile
+    exec convert $good_ifile -stroke $SQ(color,drag) -fill transparent \
+        -strokewidth $SQ(strokewidth) -draw "polygon $xy" $drag_ifile
+
+    image create photo $active_tile -file $active_ifile
+    image create photo $drag_tile -file $drag_ifile
+    file delete $active_ifile $drag_ifile
+}
+proc ::Octagon::_MakeFrame {frame_iname} {
+    variable SQ
+    ShowStatus "" "Making background image" button=None
+
+    set frame_ifile [file join $SQ(image,dir) "frame$SQ(ext)"]
+    set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
+    $SQ(img) write $image_ifile -format $SQ(format)
+
+    # NB. frame has "holes" so we can't just cut along the convex hull
+    set cmd [list convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white]
+    foreach idx [range $SQ(n,total)] {
+        set pos [lindex $SQ(xy,$idx) 0]
+        set xy [lmap {x y} $pos {return -level 0 "$x,$y"}]
+        lappend cmd "-draw" "polygon $xy"
+    }
+    lappend cmd $image_ifile -compose SrcOut -composite $frame_ifile
+    exec {*}$cmd
+    image create photo $frame_iname -file $frame_ifile
+
+    file delete $frame_ifile
+    file delete $image_ifile
+}
+
+proc ::Octagon::_CoordsAtXY {x0 y0} {
+    variable SQ
+
+    set x1 [expr {$x0 + $SQ(sz,w) / 3.0}]
+    set x2 [expr {$x0 + 2 * $SQ(sz,w) / 3.0}]
+    set x3 [expr {$x0 + $SQ(sz,w)}]
+    set xc [expr {$x0 + $SQ(sz,w) / 2.0}]
+    set y1 [expr {$y0 + $SQ(sz,h) / 3.0}]
+    set y2 [expr {$y0 + 2 * $SQ(sz,h) / 3.0}]
+    set y3 [expr {$y0 + $SQ(sz,h)}]
+    set yc [expr {$y0 + $SQ(sz,h) / 2.0}]
+
+    set xy {}
+    lappend xy $x0 $y1 $x1 $y0 $x2 $y0 $x3 $y1
+    lappend xy $x3 $y2 $x2 $y3 $x1 $y3 $x0 $y2
+    set center [list $xc $yc]
+    return [list $xy $center]
+}
+proc ::Octagon::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Octagon::_CutShape $idx True
+}

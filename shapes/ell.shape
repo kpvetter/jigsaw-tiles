@@ -1,0 +1,223 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# ell -- cut the image into ell shaped tiles
+#
+# target,size must be a multiple of 6
+#
+catch {namespace delete ::Ell}
+
+namespace eval ::Ell {
+    variable _SQ
+    set _SQ(target,size) 8
+    # set _SQ(target,h) 8 ;# Rounded up to multiple of 2
+    # set _SQ(target,w) 9 ;# Rounded up to multiple of 3
+    set _SQ(n,w) TBD
+    set _SQ(n,h) TBD
+    set _SQ(n,total) TBD
+    set _SQ(margin) 60
+    set ELL_NORMAL ELL
+    set ELL_TURNED TURNED
+
+    proc CanDo {} { return True }
+
+    proc New {img _itype _tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+
+        set SQ(img) $img
+
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Ell::SplitImage {} {
+    variable SQ
+
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 2]
+    set SQ(target,h) [expr {(($size + 1) / 2) * 2}]
+    set SQ(target,w) [expr {(($size + 2) / 3) * 3}]
+
+    image delete {*}[info commands ::img::puzzle_*]
+
+    set SQ(w) [image width $SQ(img)]
+    set SQ(h) [image height $SQ(img)]
+    set SQ(unit,w) [expr {($SQ(w) - 2 * $SQ(margin)) / $SQ(target,w)}]
+    set SQ(unit,h) [expr {($SQ(h) - 2 * $SQ(margin)) / $SQ(target,h)}]
+    set SQ(n,w) [expr {$SQ(target,w) / 3}]
+    set SQ(n,h) [expr {$SQ(target,h) / 2}]
+    set SQ(n,total) [expr {2 * $SQ(n,h) * $SQ(n,w)}]
+
+    ::Ell::_Precomputations
+
+    array unset SQ xy,*
+    set idx -1
+    foreach row [range $SQ(n,h)] {
+        foreach col [range $SQ(n,w)] {
+            lassign [::Ell::_RC2XY $row $col] x0 y0
+
+            incr idx
+            set SQ(xy,$idx) [::Ell::_CoordsAtXY $x0 $y0 $::Ell::ELL_NORMAL]
+            ShowStatus "" "Cutting ell tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Ell::_CutShape $idx False
+
+            incr idx
+            set SQ(xy,$idx) [::Ell::_CoordsAtXY $x0 $y0 $::Ell::ELL_TURNED]
+            ShowStatus "" "Cutting ell tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Ell::_CutShape $idx False
+        }
+    }
+
+    ShowStatus "" "Making background image" button=None
+    set x0 $SQ(margin)
+    set y0 $SQ(margin)
+    lassign [::Ell::_RC2XY $SQ(n,h) $SQ(n,w)] x1 y1
+    ::Baseshape::_RectFrame $SQ(img) ::img::puzzle_frame $x0 $y0 $x1 $y1
+}
+proc ::Ell::_CutShape {idx puzzle} {
+    variable SQ
+
+    set master_tile ::img::puzzle_tile
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    lassign $SQ(xy,$idx) xy _ shape bbox
+    set w [expr {2 * $SQ(unit,w)}]
+    set h [expr {2 * $SQ(unit,h)}]
+
+    image create photo $master_tile -width $w -height $h
+    $master_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $master_tile $master_tile
+    }
+
+    image create photo $good_tile -width $w -height $h
+    $good_tile copy $master_tile -from {*}$SQ(rect1,$shape) -to {*}$SQ(rect1,$shape)
+    $good_tile copy $master_tile -from {*}$SQ(rect2,$shape) -to {*}$SQ(rect2,$shape)
+    image delete $master_tile
+
+    image create photo $active_tile
+    $active_tile copy $good_tile
+    ::Ell::_OutlineTile $active_tile $shape $SQ(color,shade1) $SQ(color,shade2)
+
+    image create photo $drag_tile
+    $drag_tile copy $good_tile
+    ::Ell::_OutlineTile $drag_tile $shape $SQ(color,drag) $SQ(color,drag)
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile $SQ(center,$shape)
+        ::Baseshape::_AddQuestionMark $drag_tile $SQ(center,$shape)
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile -width $w -height $h
+        $explode_tile put $SQ(color,explode) -to {*}$SQ(rect1,$shape)
+        $explode_tile put $SQ(color,explode) -to {*}$SQ(rect2,$shape)
+    }
+
+    if {$idx < 2 && ! $puzzle} {
+        set quest_tile ::img::puzzle_q_$shape
+        image create photo $quest_tile -width $w -height $h
+        $quest_tile put $SQ(color,quest) -to {*}$SQ(rect1,$shape)
+        $quest_tile put $SQ(color,quest) -to {*}$SQ(rect2,$shape)
+
+        ::Ell::_OutlineTile $quest_tile $shape $SQ(color,shade2) $SQ(color,shade1)
+        ::Baseshape::_AddQuestionMark $quest_tile $SQ(center,$shape)
+    }
+}
+proc ::Ell::_Precomputations {} {
+    variable SQ
+
+    set dxy [lindex [::Ell::_CoordsAtXY 0 0 $::Ell::ELL_NORMAL] 0]
+    lassign $dxy dx0 dy0 dx1 _ _ dy1 dx2 _ _ dy2 _ _
+
+    set SQ(rect1,$::Ell::ELL_NORMAL) [list $dx0 $dy0 $dx1 $dy2]
+    set SQ(rect2,$::Ell::ELL_NORMAL) [list $dx0 $dy1 $dx2 $dy2]
+    set SQ(center,$::Ell::ELL_NORMAL) [list [expr {($dx0 + $dx1) / 2}] $dy1]
+    set SQ(rect1,$::Ell::ELL_TURNED) [list $dx0 $dy0 $dx2 $dy1]
+    set SQ(rect2,$::Ell::ELL_TURNED) [list $dx1 $dy0 $dx2 $dy2]
+    set SQ(center,$::Ell::ELL_TURNED) [list [expr {($dx1 + $dx2) / 2}] $dy1]
+
+    set z $SQ(strokewidth)
+    set SQ(light,$::Ell::ELL_NORMAL) [list [list $dx0 $dy0 $dx0+$z $dy2] \
+                                          [list $dx0 $dy0 $dx1 $dy0+$z] \
+                                          [list $dx1 $dy1 $dx2 $dy1+$z]]
+    set SQ(dark,$::Ell::ELL_NORMAL) [list [list $dx0+$z $dy2-$z $dx2 $dy2] \
+                                         [list $dx2-$z $dy1+$z $dx2 $dy2] \
+                                         [list $dx1-$z $dy0+$z $dx1 $dy1+$z]]
+
+    set SQ(light,$::Ell::ELL_TURNED) [list [list  $dx0 $dy0 $dx0+$z $dy1] \
+                                          [list  $dx0 $dy0 $dx2 $dy0+$z] \
+                                          [list  $dx1 $dy1 $dx1+$z $dy2]]
+    set SQ(dark,$::Ell::ELL_TURNED) [list [list $dx0+$z $dy1-$z $dx1+$z $dy1] \
+                                         [list $dx2-$z $dy0+$z $dx2 $dy2] \
+                                         [list $dx1+$z $dy2-$z $dx2 $dy2]]
+}
+proc ::Ell::_RC2XY {row col} {
+    # NB. columns are doubled -- both col 2N and 2N+1 have the same XY
+    variable SQ
+    set x0 [expr {$SQ(margin) + 3 * $col * $SQ(unit,w)}]
+    set y0 [expr {$SQ(margin) + 2 * $row * $SQ(unit,h)}]
+    return [list $x0 $y0]
+}
+proc ::Ell::_CoordsAtXY {x0 y0 shape} {
+    # NB. columns are doubled -- both col 2N and 2N+1 have the same XY
+    variable SQ
+    set x1 [expr {$x0 + 1 * $SQ(unit,w)}]
+    set x2 [expr {$x0 + 2 * $SQ(unit,w)}]
+    set x3 [expr {$x0 + 3 * $SQ(unit,w)}]
+    set y1 [expr {$y0 + 1 * $SQ(unit,h)}]
+    set y2 [expr {$y0 + 2 * $SQ(unit,h)}]
+
+    if {$shape eq $::Ell::ELL_NORMAL} {
+        set xy [list $x0 $y0 $x1 $y0 $x1 $y1 $x2 $y1 $x2 $y2 $x0 $y2]
+        set bbox [list $x0 $y0 $x2 $y2]
+        set xc [expr {($x0 + $x2) / 2}]
+        set yc [expr {($y0 + $y2) / 2}]
+        set centers [list $xc $yc]
+    } else {
+        set xy [list $x1 $y0 $x3 $y0 $x3 $y2 $x2 $y2 $x2 $y1 $x1 $y1]
+        set bbox [list $x1 $y0 $x3 $y2]
+        set xc [expr {($x1 + $x3) / 2}]
+        set yc [expr {($y0 + $y2) / 2}]
+        set centers [list $xc $yc]
+    }
+    return [list $xy $centers $shape $bbox]
+}
+proc ::Ell::_OutlineTile {img shape color1 color2} {
+    variable SQ
+
+    foreach segment $SQ(light,$shape) {
+        set xy [lmap v $segment { expr $v }]
+        $img put $color1 -to {*}$xy
+    }
+    foreach segment $SQ(dark,$shape) {
+        set xy [lmap v $segment { expr $v }]
+        $img put $color2 -to {*}$xy
+    }
+}
+
+proc ::Ell::XY2Tile {x y} {
+    variable SQ
+
+    foreach idx [range $SQ(n,total)] {
+        lassign [lindex $SQ(xy,$idx) 0] x0 y0 x1 y1 x2 y2 x3 y3 x4 y4 x5 y5
+        set shape [lindex $SQ(xy,$idx) 2]
+
+        if {$shape eq $::Ell::ELL_NORMAL} {
+            if {$x >= $x0 && $x <= $x1 && $y >= $y0 && $y <= $y4} { return $idx }
+            if {$x >= $x0 && $x <= $x4 && $y >= $y2 && $y <= $y4} { return $idx }
+        } else {
+            if {$x >= $x0 && $x <= $x1 && $y >= $y0 && $y <= $y4} { return $idx }
+            if {$x >= $x4 && $x <= $x1 && $y >= $y0 && $y <= $y2} { return $idx }
+        }
+    }
+    return None
+}
+proc ::Ell::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Ell::_CutShape $idx True
+}

@@ -1,0 +1,377 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# hexagon -- cut the picture into hexagon shaped tiles
+#
+catch {namespace delete ::Hexagon}
+
+namespace eval ::Hexagon {
+    variable _SQ
+    set _SQ(image,dir) "TBD"
+    set _SQ(target,size) 4
+    set _SQ(target,margin,left) 60
+    set _SQ(target,margin,top) 60
+
+    variable TEMPLATES
+    set TEMPLATES(active) ::img::puzzle_ta
+    set TEMPLATES(drag) ::img::puzzle_td
+    set TEMPLATES(explode) ::img::puzzle_te
+    set TEMPLATES(quest) ::img::puzzle_q_ALL
+
+    proc CanDo {} {return [::Baseshape::_HasImageMagick]}
+
+    proc New {img itype tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+
+        set SQ(img) $img
+        set SQ(image,dir) $tempdir
+        set SQ(ext) [expr {$itype eq "png" ? ".png" : ".jpg"}]
+        set SQ(format) $itype
+
+        file mkdir $SQ(image,dir)
+
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Hexagon::SplitImage {} {
+    variable SQ
+
+    image delete {*}[info commands ::img::puzzle_*]
+    array unset SQ xy,*
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 1]
+    ::Hexagon::_ComputeBestSideLength $size $size
+    ::Hexagon::_MakeTemplates
+
+    set NO_PUZZLE False
+
+    set idx -1
+    foreach row [range $SQ(n,h)] {
+        set ncols [expr {$row % 2 == 0 ? $SQ(n,w) : $SQ(n,w) - 1}]
+        foreach col [range $ncols] {
+	    incr idx
+            set SQ(xy,$idx) [::Hexagon::_ShapeAtRC $row $col]
+
+            ShowStatus "" "Cutting hexagon tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Hexagon::_CutShape $idx $NO_PUZZLE
+	}
+    }
+    ::Hexagon::_MakeFrame
+}
+proc ::Hexagon::_CutShape {idx puzzle} {
+    # For each tile we need several images:
+    #  puzzle_g_# -- good: hexagon tile with no adornments
+    #  puzzle_a_# -- active: hexagon tile with its edge highlighted
+    #  puzzle_d_# -- drag: hexagon tile with its edge highlighted for drag & drop
+    #  puzzle_e_# -- explode: hexagon tile with red contents
+    # In puzzle mode, only active and drag and they'll be pixelated
+    #
+    variable SQ
+    variable TEMPLATES
+
+    set master_tile ::img::puzzle_tile
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    set bbox [lindex $SQ(xy,$idx) 3]
+    image create photo $master_tile -width $SQ(sz,w) -height $SQ(sz,h)
+    $master_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $master_tile $master_tile
+    }
+
+    ::Hexagon::_ExactShape $master_tile $good_tile
+
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(active) $active_tile
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(drag) $drag_tile
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile
+        ::Baseshape::_AddQuestionMark $drag_tile
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile
+        $explode_tile copy $TEMPLATES(explode)
+    }
+}
+proc ::Hexagon::_ExactShape {master_tile good_tile} {
+    variable SQ
+
+    set master_ifile [file join $SQ(image,dir) "master_tile$SQ(ext)"]
+    set good_ifile [file join $SQ(image,dir) "good_tile.png"]
+
+    set w [image width $master_tile]
+    set h [image height $master_tile]
+    set vertices [::Hexagon::_ShapeXY 0 0 $SQ(side,len)]
+    lassign $vertices x0 y0 x1 y1 x2 y2 x3 y3 x4 y4 x5 y5
+    set xy [lmap {x y} $vertices {return -level 0 "$x,$y"}]
+
+    $master_tile write $master_ifile -format $SQ(format)
+    exec convert -size ${w}x${h} xc:none -fill white \
+        -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
+    image create photo $good_tile -file $good_ifile
+
+    file delete $master_ifile
+    file delete $good_ifile
+}
+proc ::Hexagon::_MakeTemplates {} {
+    # * Creates 2 outline images--an active outline and drag outline
+    # * Creates 1 explode image
+    # * Creates 1 quest image
+
+    variable SQ
+    variable TEMPLATES
+    ShowStatus "" "Cutting hexagon templates" button=None
+
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+    set xc [expr {$w / 2.0}]
+    set yc [expr {$h / 2.0}]
+
+    set template_ifile [file join $SQ(image,dir) "template.png"]
+
+    set active_template $TEMPLATES(active)
+    set drag_template $TEMPLATES(drag)
+    set explode_template $TEMPLATES(explode)
+    set quest_template $TEMPLATES(quest)
+
+    set pos [::Hexagon::_ShapeXY 0 0 $SQ(side,len)]
+    lassign $pos x0 y0 x1 y1 x2 y2 x3 y3 x4 y4 x5 y5
+    set xy "$x0,$y0 $x1,$y1 $x2,$y2 $x3,$y3 $x4,$y4 $x5,$y5"
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+        -stroke $SQ(color,shade1) -draw "line $x0,$y0 $x1,$y1" \
+        -stroke $SQ(color,shade1) -draw "line $x0,$y0 $x5,$y5" \
+        -stroke $SQ(color,shade1) -draw "line $x4,$y4 $x5,$y5" \
+        -stroke $SQ(color,shade2) -draw "line $x1,$y1 $x2,$y2" \
+        -stroke $SQ(color,shade2) -draw "line $x2,$y2 $x3,$y3" \
+        -stroke $SQ(color,shade2) -draw "line $x3,$y3 $x4,$y4" \
+        $template_ifile
+    image create photo $active_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+        -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
+    image create photo $drag_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
+        -stroke $SQ(color,explode) -draw "polygon $xy" $template_ifile
+    image create photo $explode_template -file $template_ifile
+
+    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
+        -stroke $SQ(color,shade1) -draw "polygon $xy" $template_ifile
+    image create photo $quest_template -file $template_ifile
+    ::Baseshape::_AddQuestionMark $quest_template
+
+    file delete $template_ifile
+}
+
+proc ::Hexagon::_ShapeXY {dx dy slen} {
+    # Returns coords of hexagon with top-left at dx,dy and with side length $slen
+    set h [expr {$slen * sin(acos(-1) / 3.0)}]
+
+    set x0 $dx
+    set x1 [expr {$x0 + $h}]
+    set x2 [expr {$x0 + 2 * $h}]
+    set x3 $x2
+    set x4 $x1
+    set x5 $x0
+
+    set y0 [expr {$dy + .5 * $slen}]
+    set y1 $dy
+    set y2 $y0
+    set y3 [expr {$y0 + $slen}]
+    set y4 [expr {$y0 + 1.5 * $slen}]
+    set y5 $y3
+
+    set xy [list $x0 $y0 $x1 $y1 $x2 $y2 $x3 $y3 $x4 $y4 $x5 $y5]
+    set xy [lmap v $xy { expr {round($v)}}]
+    return $xy
+}
+
+proc ::Hexagon::_ShapeAtRC {row col} {
+    variable SQ
+
+    set left [expr {$SQ(margin,left) + ($row % 2 == 1 ? $SQ(hex,h) : 0)}]
+    set top $SQ(margin,top)
+
+    set x0 [expr {$left + $col * 2 * $SQ(hex,h)}]
+    set y1 [expr {$top + $row * 1.5 * $SQ(side,len)}]
+    set xy [::Hexagon::_ShapeXY $x0 $y1 $SQ(side,len)]
+
+    lassign $xy x0 y0 x1 y1 x2 y2 x3 y3 x4 y4 x5 y5
+    set center [list [expr {round($x1)}] [expr {round($y1 + $SQ(side,len))}]]
+    set bbox [lmap v [list $x0 $y1 $x2 $y4] { expr {int($v)}}]
+    return [list $xy $center ALL $bbox]
+}
+proc ::Hexagon::_ComputeBestSideLength {target_rows target_cols} {
+    # Determines the size of a unit square that best tiles the image
+    # based on target_rows and target_cols.
+    # SQ(w) SQ(h)
+    # SQ(sz,w) SQ(sz,h)
+    # SQ(margin,left) SQ(margin,top)
+    # SQ(n,w) SQ(n,h)
+    # SQ(n,total)
+    # SQ(side,len)
+    # SQ(hex,h)
+
+    variable SQ
+
+    set SQ(w) [image width $SQ(img)]
+    set SQ(h) [image height $SQ(img)]
+
+    set w [expr {$SQ(w) - 2 * $SQ(target,margin,left)}]
+    set h [expr {$SQ(h) - 2 * $SQ(target,margin,top)}]
+
+    # Assume we have exactly target_cols columns
+    global A
+    unset -nocomplain A
+    set A(cols,ncols) $target_cols
+    set A(cols,bbox_width) [expr {$w / $A(cols,ncols)}]
+    set A(cols,slen) [expr {$A(cols,bbox_width) / sqrt(3)}]
+    set A(cols,nrows) [expr {int((2 * $h / $A(cols,slen) - 1) / 3.0)}]
+    set A(cols,total) [expr {$A(cols,nrows) * $A(cols,ncols) - int($A(cols,nrows) / 2)}]
+
+    # Assume we have exactly target_rows rows
+    set A(rows,nrows) $target_rows
+    set A(rows,slen) [expr {2.0 * $h / (3 * $A(rows,nrows) + 1)}]
+    set A(rows,ncols) [expr {int($w / ($A(rows,slen) * sqrt(3)))}]
+    set A(rows,total) [expr {$A(rows,nrows) * $A(rows,ncols) - int($A(rows,nrows) / 2)}]
+
+    set which [expr {$A(cols,total) > $A(rows,total) ? "cols" : "rows"}]
+
+    set SQ(n,w) $A($which,ncols)
+    set SQ(n,h) $A($which,nrows)
+    set SQ(n,total) $A($which,total)
+    set SQ(side,len) $A($which,slen)
+    set SQ(hex,h) [expr {$SQ(side,len) * sin(acos(-1) / 3.0)}]
+
+    set tiling_width [expr {int($SQ(side,len) * $SQ(n,w) * sqrt(3))}]
+    set excess_width [expr {$w - $tiling_width}]
+    set SQ(margin,left) [expr {$SQ(target,margin,left) + $excess_width / 2}]
+
+    set tiling_height [expr {int($SQ(side,len) * (.5 + 3 * $SQ(n,h) / 2.0))}]
+    set excess_height [expr {$h - $tiling_height}]
+    set SQ(margin,top) [expr {$SQ(target,margin,top) + $excess_height / 2}]
+
+    # Used to create rectangular tile to cut hexagons out of
+    set SQ(sz,w) [expr {int(2 * $SQ(hex,h))}]
+    set SQ(sz,h) [expr {int(2 * $SQ(side,len))}]
+}
+
+proc ::Hexagon::_MakeFrame {} {
+    variable SQ
+    ShowStatus "" "Making background image" button=None
+
+    set frame_iname ::img::puzzle_frame
+    set xy [::Hexagon::_ComputeFrameXY]
+
+    set frame_ifile [file join $SQ(image,dir) "frame$SQ(ext)"]
+    set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
+    $SQ(img) write $image_ifile -format $SQ(format)
+
+    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+        "-draw" "polygon $xy" \
+        $image_ifile -compose SrcOut -composite $frame_ifile
+    image create photo $frame_iname -file $frame_ifile
+
+    file delete $frame_ifile
+    file delete $image_ifile
+}
+proc ::Hexagon::_ComputeFrameXY {} {
+    variable SQ
+
+    set cols $SQ(n,w)
+    set rows $SQ(n,h)
+
+    set tiles {}
+    set corners {}
+
+    # Top side
+    lappend tiles {*}[range $cols]
+    lappend corners {*}[lrepeat $cols {1 2}]
+
+    # Right side
+    foreach row [range $rows] {
+        set idx [::Hexagon::_TileToIndex $row "end"]
+        lappend tiles $idx
+        if {$row % 2 == 1} { ;# Short row
+            lappend corners 3
+        } else {
+            lappend corners {2 3 4}
+        }
+    }
+
+    # Bottom side
+    set left [::Hexagon::_TileToIndex $rows-1 first]
+    set right [::Hexagon::_TileToIndex $rows-1 end]
+
+    lappend tiles {*}[range $right $left-1 -1]
+    set cnt [expr {$right - $left + 1}]
+    lappend corners {*}[lrepeat $cnt {4 5}]
+
+    # Left side
+    foreach row [range $rows-1 0-1 -1] {
+        set idx [::Hexagon::_TileToIndex $row "first"]
+        lappend tiles $idx
+        if {$row % 2 == 1} { ;# Short row
+            lappend corners 0
+        } else {
+            lappend corners {5 0 1}
+        }
+    }
+
+    unset -nocomplain X Y
+    set xy ""
+    set SQ(frame,xy) {}
+    foreach tile $tiles corner $corners {
+        lassign [lindex $SQ(xy,$tile) 0] X(0) Y(0) X(1) Y(1) X(2) Y(2) X(3) Y(3) X(4) Y(4) X(5) Y(5)
+        foreach vertex $corner {
+            append xy "$X($vertex),$Y($vertex) "
+            lappend SQ(frame,xy) $X($vertex) $Y($vertex)
+        }
+    }
+    return $xy
+}
+proc ::Hexagon::_TileToIndex {row which} {
+    variable SQ
+    set cols $SQ(n,w)
+
+    if {[regexp {^-?\d+[+-]\d+$} $row]} { set row [expr $row] }
+
+    if {$which ni {"end" "first"}} {
+        error "which must be 'end' or 'first', not '$which'"
+    }
+    if {$which eq "end"} {
+        set idx [expr {(($row + 2) / 2) * $cols + (($row + 1) / 2) * ($cols - 1) - 1}]
+    } else {
+        if {$row == 0} {
+            set idx 0
+        } else {
+            set prev [::Hexagon::_TileToIndex $row-1 end]
+            set idx [expr {$prev + 1}]
+        }
+    }
+    return $idx
+}
+proc ::Hexagon::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Hexagon::_CutShape $idx True
+}
+proc ::Hexagon::OneCircle {idx args} {
+    variable SQ
+    lassign [lindex $SQ(xy,$idx) 0] x y
+    lassign [lindex $SQ(xy,$idx) 1] xc yc
+    set radius [expr {$xc - $x}]
+
+    set x0 [expr {$xc - $radius}]
+    set y0 [expr {$yc - $radius}]
+    set x1 [expr {$xc + $radius}]
+    set y1 [expr {$yc + $radius}]
+    set n [.c create oval $x0 $y0 $x1 $y1 -tag a {*}$args]
+    return $n
+}

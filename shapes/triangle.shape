@@ -1,0 +1,266 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# triangle -- cut the picture into triangle shaped tiles
+#
+catch {namespace delete ::Triangle}
+
+namespace eval ::Triangle {
+    variable SQ
+    variable _SQ
+    set _SQ(image,dir) "TBD"
+    set _SQ(target,size) 4
+    set _SQ(target,margin,left) 60
+    set _SQ(target,margin,top) 60
+    variable POINT_UP UP
+    variable POINT_DOWN DOWN
+
+    variable TEMPLATES
+    set TEMPLATES(active,$POINT_UP) ::img::puzzle_ta_$POINT_UP
+    set TEMPLATES(drag,$POINT_UP) ::img::puzzle_td_$POINT_UP
+    set TEMPLATES(active,$POINT_DOWN) ::img::puzzle_ta_$POINT_DOWN
+    set TEMPLATES(drag,$POINT_DOWN) ::img::puzzle_td_$POINT_DOWN
+    set TEMPLATES(explode,$POINT_UP) ::img::puzzle_te_$POINT_UP
+    set TEMPLATES(explode,$POINT_DOWN) ::img::puzzle_te_$POINT_DOWN
+    set TEMPLATES(quest,$POINT_UP) ::img::puzzle_q_$POINT_UP
+    set TEMPLATES(quest,$POINT_DOWN) ::img::puzzle_q_$POINT_DOWN
+
+    proc CanDo {} {return [::Baseshape::_HasImageMagick]}
+
+    proc New {img itype tempdir} {
+        variable SQ
+        variable _SQ
+        unset -nocomplain SQ
+        array set SQ [array get _SQ]
+
+        set SQ(img) $img
+        set SQ(image,dir) $tempdir
+        set SQ(ext) [expr {$itype eq "png" ? ".png" : ".jpg"}]
+        set SQ(format) $itype
+
+        file mkdir $SQ(image,dir)
+
+        set obj [::Baseshape::_CreateObj [namespace current]]
+        return $obj
+    }
+}
+proc ::Triangle::SplitImage {} {
+
+    variable SQ
+    variable POINT_UP
+    variable POINT_DOWN
+
+    image delete {*}[info commands ::img::puzzle_*]
+    array unset SQ xy,*
+    set size [::Baseshape::_SizeAdjust $SQ(target,size) 1]
+    ::Baseshape::_ComputeUnitSquareSize $size $size
+    ::Triangle::_MakeTemplates
+
+    set SQ(n,total) [expr {(2 * $SQ(n,w) - 1) * $SQ(n,h)}]
+
+    set NO_PUZZLE False
+    set idx -1
+    foreach row [range $SQ(n,h)] {
+	set y0 [expr {$SQ(margin,top) + $row * $SQ(sz,h)}]
+	set y1 [expr {$y0 + $SQ(sz,h)}]
+        set y [expr {($y0 + $y1) / 2}]
+
+	foreach col [range $SQ(n,w)] {
+	    set x0 [expr {$SQ(margin,left) + $col * $SQ(sz,w)}]
+	    set x1 [expr {$x0 + $SQ(sz,w)}]
+            set x [expr {($x0 + $x1) / 2}]
+            set xx [expr {$x + $SQ(sz,w)}]
+
+	    incr idx
+            set bbox [list $x0 $y0 $x1 $y1]
+            set shape [expr {$idx % 2 == 0 ? $POINT_UP : $POINT_DOWN}]
+            if {$shape == $POINT_UP} {
+                set vertices [list $x0 $y1 $x $y0 $x1 $y1]
+            } else {
+                set vertices [list $x0 $y0 $x1 $y0 $x $y1]
+            }
+            set SQ(xy,$idx) [list $vertices [list $x $y] $shape $bbox]
+
+            ShowStatus "" "Cutting triangle tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Triangle::_CutShape $idx $NO_PUZZLE
+
+            if {$col == $SQ(n,w) - 1} continue
+
+            incr idx
+            set bbox [list $x $y0 $xx $y1]
+            set shape [expr {$idx % 2 == 0 ? $POINT_UP : $POINT_DOWN}]
+            if {$shape == $POINT_UP} {
+                set vertices [list $x $y1 $x1 $y0 $xx $y1]
+            } else {
+                set vertices [list $x $y0 $xx $y0 $x1 $y1]
+            }
+            set SQ(xy,$idx) [list $vertices [list $x1 $y] $shape $bbox]
+
+            ShowStatus "" "Cutting triangle tiles #[expr {$idx + 1}]/$SQ(n,total)" button=None
+            ::Triangle::_CutShape $idx $NO_PUZZLE
+	}
+    }
+
+    ::Triangle::_MakeFrame
+}
+proc ::Triangle::_CutShape {idx puzzle} {
+    # For each tile we need several images:
+    #  puzzle_g_# -- good: triangle tile with no adornments
+    #  puzzle_a_# -- active: triangle tile with its edge highlighted
+    #  puzzle_d_# -- drag: triangle tile with its edge highlighted for drag & drop
+    #  puzzle_e_# -- explode: triangle tile with red contents
+
+    variable SQ
+    variable POINT_UP
+    variable POINT_DOWN
+    variable TEMPLATES
+
+    lassign $SQ(xy,$idx) _ _ shape bbox
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+    set xc [expr {$w / 2.0}]
+    set yc [expr {$h / 2.0}]
+    if {$shape == $POINT_UP} {
+        set xy "0,$h $xc,0 $w,$h"
+    } else {
+        set xy "0,0 $w,0 $xc,$h"
+    }
+
+    set master_ifile [file join $SQ(image,dir) "master_${idx}$SQ(ext)"]
+    set good_ifile [file join $SQ(image,dir) "triangle_g_${idx}.png"]
+
+    set master_tile ::img::puzzle_tile
+    set good_tile [string cat ::img::puzzle_g [expr {$puzzle ? "" : "_$idx"}]]
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+    set explode_tile ::img::puzzle_e_$idx
+
+    image create photo ::img::puzzle_tile -width $SQ(sz,w) -height $SQ(sz,h)
+    $master_tile copy $SQ(img) -from {*}$bbox
+    if {$puzzle} {
+        ::Baseshape::_Pixelate $master_tile $master_tile
+    }
+
+    $master_tile write $master_ifile -format $SQ(format)
+    exec convert -size ${w}x${h} xc:none -fill white \
+        -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
+    image create photo $good_tile -file $good_ifile
+
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(active,$shape) $active_tile
+    ::Baseshape::_AddOutline $good_tile $TEMPLATES(drag,$shape) $drag_tile
+
+    if {$puzzle} {
+        ::Baseshape::_AddQuestionMark $active_tile
+        ::Baseshape::_AddQuestionMark $drag_tile
+        image delete $good_tile
+    } else {
+        image create photo $explode_tile
+        $explode_tile copy $TEMPLATES(explode,$shape)
+    }
+
+    file delete $master_ifile
+    file delete $good_ifile
+}
+proc ::Triangle::_MakeFrame {} {
+    variable SQ
+    set frame_iname ::img::puzzle_frame
+
+    ShowStatus "" "Making background image" button=None
+
+    set n2 [expr {2 * $SQ(n,w) - 1}]
+    set high $SQ(n,total)
+
+    set tiles [list 0 [expr {$n2-1}]]
+    lappend tiles {*}[range $n2-1 $high $n2]
+    lappend tiles [expr {$high - $n2}]
+    lappend tiles {*}[lreverse [range $n2 $high-1 $n2]]
+
+    set corners [list 1 1]  ;# Top
+    lappend corners {*}[lrepeat $SQ(n,h) 2]   ;# Right
+    lappend corners [expr {$SQ(n,h) % 2 == 0 ? 2 : 0}]
+    foreach row [lreverse [range 1 $SQ(n,h)]] {
+        lappend corners [expr {$row % 2 == 0 ? 1 : 0}]
+    }
+
+    unset -nocomplain X Y
+    set xy ""
+    foreach tile $tiles corner $corners {
+        lassign [lindex $SQ(xy,$tile) 0] X(0) Y(0) X(1) Y(1) X(2) Y(2) X(3) Y(3)
+        foreach vertex $corner {
+            append xy "$X($vertex),$Y($vertex) "
+        }
+    }
+
+    set frame_ifile [file join $SQ(image,dir) "frame$SQ(ext)"]
+    set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
+    $SQ(img) write $image_ifile -format $SQ(format)
+
+    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+        "-draw" "polygon $xy" \
+        $image_ifile -compose SrcOut -composite $frame_ifile
+    image create photo $frame_iname -file $frame_ifile
+
+    file delete $frame_ifile
+    file delete $image_ifile
+}
+proc ::Triangle::_MakeTemplates {} {
+    # * Creates 4 outline images--each shape will get an active outline and drag outline
+    # * Creates 2 explode images--one for each shape
+    # * Creates 2 quest image
+
+    variable SQ
+    variable TEMPLATES
+    variable POINT_UP
+    variable POINT_DOWN
+    ShowStatus "" "Cutting triangle templates" button=None
+
+    set w $SQ(sz,w)
+    set h $SQ(sz,h)
+    set xc [expr {$w / 2.0}]
+    set yc [expr {$h / 2.0}]
+
+    set template_ifile [file join $SQ(image,dir) "template.png"]
+
+    foreach shape [list $POINT_UP $POINT_DOWN] {
+        set active_template $TEMPLATES(active,$shape)
+        set drag_template $TEMPLATES(drag,$shape)
+        set explode_template $TEMPLATES(explode,$shape)
+        set quest_template $TEMPLATES(quest,$shape)
+
+        if {$shape eq $POINT_UP} {
+            set xy "0,$h $xc,0 $w,$h"
+            exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+                -stroke $SQ(color,shade1) -draw "line 0,$h $xc,0" \
+                -stroke $SQ(color,shade2) -draw "line $xc,0 $w,$h" \
+                -stroke $SQ(color,shade2) -draw "line $w,$h 0,$h" \
+                $template_ifile
+        } else {
+            set xy "0,0 $w,0 $xc,$h"
+            exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+                -stroke $SQ(color,shade1) -draw "line 0,0 $w,0" \
+                -stroke $SQ(color,shade1) -draw "line 0,0 $xc,$h" \
+                -stroke $SQ(color,shade2) -draw "line $xc,$h $w,0" \
+                $template_ifile
+        }
+        image create photo $active_template -file $template_ifile
+
+        exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+            -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
+        image create photo $drag_template -file $template_ifile
+
+        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,explode) -fill $SQ(color,explode) \
+            -draw "polygon $xy" $template_ifile
+        image create photo $explode_template -file $template_ifile
+
+        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,shade1) -fill $SQ(color,quest) \
+            -draw "polygon $xy" $template_ifile
+        image create photo $quest_template -file $template_ifile
+        ::Baseshape::_AddQuestionMark $quest_template
+    }
+
+    file delete $template_ifile
+}
+proc ::Triangle::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    ::Triangle::_CutShape $idx True
+}

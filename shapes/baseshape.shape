@@ -1,0 +1,291 @@
+# -*- mode: tcl; tab-width: 8; -*-
+##+##########################################################################
+#
+# baseshape -- base "class" for all shape objects
+#
+catch {namespace delete ::Baseshape}
+
+namespace eval ::Baseshape {
+    variable base_SQ
+
+    set base_SQ(size,adjust) 0
+    set base_SQ(strokewidth) 3
+    set base_SQ(color,shade1) white
+    set base_SQ(color,shade2) gray25
+    set base_SQ(color,drag) red
+    set base_SQ(color,explode) red
+    set base_SQ(color,quest) lightgreen
+    set base_SQ(blur,factor) 30
+    set base_SQ(blur,width) 5
+    set base_SQ(color,blur) lightgreen
+    set base_SQ(quest,delta) {3 3}
+}
+proc ::Baseshape::CanDo {} {return False}
+proc ::Baseshape::CanPlaceTile {this tile1 tile2} { error "Not yet implemented" }
+proc ::Baseshape::MakeQuestionTiles {count solved} { error "Not yet implemented" }
+proc ::Baseshape::MakeSingleQuestionTile {idx} { error "Not yet implemented" }
+proc ::Baseshape::UnmakeQuestionTiles {} { error "Not yet implemented" }
+proc ::Baseshape::New {img iname potdname tempdir} { error "Not yet implemented" }
+proc ::Baseshape::ShuffleTiles {this} { error "Not yet implemented" }
+proc ::Baseshape::SplitImage {this} { error "Not yet implemented" }
+proc ::Baseshape::Tile2XY {this where} { error "Not yet implemented" }
+proc ::Baseshape::XY2Tile {this x y} { error "Not yet implemented" }
+
+proc ::Baseshape::_HasImageMagick {} {
+    if {[auto_execok convert] eq ""} {
+            return False
+    }
+    return True
+}
+proc ::Baseshape::_CreateObj {ns} {
+    # Performs our "sub-classing" by creating a new "instance" of a
+    # namespace enemble command with:
+    # 1. make ensemble command map taking functions from $ns if present, or from Baseshape otherwise
+    # 2. make $ns::SQ array available to Baseshape via upvar so a function in Baseshape
+    #    uses the correct SQ data
+
+    # Link $ns::SQ to Baseshape and copy any Baseshape::base_SQ into SQ
+    upvar #0 ${ns}::SQ ::Baseshape::SQ
+    foreach {k v} [array get ::Baseshape::base_SQ] {
+        if {! [info exists ${ns}::SQ($k)]} {
+            set ${ns}::SQ($k) $v
+        }
+    }
+
+    set obj_name ${ns}::_obj
+    set ${ns}::SQ(obj) $obj_name
+    set commandMap [::Baseshape::_BuildCommandMap $ns]
+    namespace ensemble create -command $obj_name -map $commandMap
+
+    return $obj_name
+}
+proc ::Baseshape::_BuildCommandMap {ns} {
+    # Build ensemble commandMap for all functions in Baseshape. If
+    # there's a version of that function in $ns then use that, else
+    # default to Baseshape.
+
+    set commandMap {}
+    foreach cmd [lsort [info procs ::Baseshape::*]] {
+        set pname [lindex [split $cmd ":"] end]
+        if {$pname eq "New" || [string match "_*" $pname]} continue
+
+        set local [info procs ${ns}::$pname]
+        if {$local ne ""} {
+            set cmd $local
+        }
+        lappend commandMap $pname $cmd
+    }
+    return $commandMap
+}
+
+proc ::Baseshape::CanPlaceTile {tile1 tile2} {
+    # Determines if tile1 is the same "shape" as tile2 and
+    # so the two can be swapped.
+    variable SQ
+
+    if {$tile1 eq "None" || $tile2 eq "None"} { return False }
+    set shape1 [lindex $SQ(xy,$tile1) 2]
+    set shape2 [lindex $SQ(xy,$tile2) 2]
+    return [expr {$shape1 eq $shape2}]
+}
+
+proc ::Baseshape::Tile2XY {idx} {
+    # Returns the center coordinates of tile #$idx
+
+    variable SQ
+    return [lindex $SQ(xy,$idx) 1]
+}
+
+proc ::Baseshape::XY2Tile {x y} {
+    # Determines which tile the point x,y is in, or "None" if not in any tile.
+
+    # Only works on convex polygons
+    variable SQ
+
+    foreach idx [range $SQ(n,total)] {
+        set poly [lindex $SQ(xy,$idx) 0]
+        if {[::Baseshape::_IsInsideConvexPoly $x $y $poly]} {
+            return $idx
+        }
+    }
+    return None
+}
+proc ::Baseshape::ShuffleTiles {} {
+    # Returns a shuffle of all the tiles, taking care if the tiles
+    # have different shapes. We split tiles into multiple lists
+    # based on their shape, shuffle each list, then reassemble.
+
+    variable SQ
+
+    if {$SQ(n,total) == 1} { return [list 0] }
+
+    # Split into shape based lists
+    unset -nocomplain shapes
+    foreach idx [range $SQ(n,total)] {
+        set shape [lindex $SQ(xy,$idx) 2]
+        lappend shapes($shape) $idx
+    }
+
+    # Shuffle each shaped list
+    foreach {key values} [array get shapes] {
+        set shapes($key) [PerfectShuffle $values]
+    }
+
+    # Reassemble
+    set shuffle {}
+    foreach idx [range $SQ(n,total)] {
+        set shape [lindex $SQ(xy,$idx) 2]
+        set shapes($shape) [lassign $shapes($shape) item]
+        lappend shuffle $item
+    }
+
+    set SQ(shuffle) $shuffle
+    return $SQ(shuffle)
+}
+
+proc ::Baseshape::MakeQuestionTiles {count solved} {
+    # Convert $count tiles into hidden, question tiles
+
+    variable SQ
+    set all [lmap x [range $SQ(n,total)] { expr {$x in $solved ? [continue] : $x}}]
+    set all [Shuffle $all]
+    foreach _ [range $count] {
+        set all [lassign $all idx]
+        if {$idx eq ""} break
+
+        set active_tile ::img::puzzle_a_$idx
+        set active_tile_backup ::img::puzzle_a_back_$idx
+        set drag_tile ::img::puzzle_d_$idx
+        set drag_tile_backup ::img::puzzle_d_back_$idx
+        [image create photo $active_tile_backup] copy $active_tile
+        [image create photo $drag_tile_backup] copy $drag_tile
+
+        $SQ(obj) MakeSingleQuestionTile $idx
+    }
+}
+proc ::Baseshape::MakeSingleQuestionTile {idx} {
+    # Convert a single tile into a question tile
+    # Simply copies generic quest_tile.
+    # For fancier results, shapes need to override this function
+    variable SQ
+
+    set shape [lindex $SQ(xy,$idx) 2]
+    set quest_tile ::img::puzzle_q_$shape
+    set active_tile ::img::puzzle_a_$idx
+    set drag_tile ::img::puzzle_d_$idx
+
+    $active_tile copy $quest_tile
+    $drag_tile copy $quest_tile
+}
+proc ::Baseshape::UnmakeQuestionTiles {} {
+    foreach img [info commands ::img::puzzle_*_back_*] {
+        set org [regsub "_back" $img ""]
+        $org copy $img -compositingrule set
+    }
+    image delete {*}[info commands ::img::puzzle_*_back_*]
+}
+proc ::Baseshape::_IsInsideConvexPoly {x y poly} {
+    # Determines if point x,y is inside a convex polygon
+    # where poly is a clockwise list of the polygon's coordinates
+    set poly2 [concat [lrange $poly 2 end] [lrange $poly 0 1]]
+    foreach {x0 y0} $poly {x1 y1} $poly2 {
+        set v1x [expr {$x1 - $x0}]
+        set v1y [expr {$y1 - $y0}]
+        set v2x [expr {$x - $x0}]
+        set v2y [expr {$y - $y0}]
+
+        set cross [expr {$v1x * $v2y - $v1y * $v2x}]
+        if {$cross < 0} {return False}
+    }
+    return True
+}
+proc ::Baseshape::_ComputeUnitSquareSize {target_rows target_cols} {
+    # Determines the size of a unit square that best tiles the image
+    # based on target_rows and target_cols.
+    # SQ(w) SQ(h)
+    # SQ(sz,w) SQ(sz,h)
+    # SQ(margin,left) SQ(margin,top)
+    # SQ(n,w) SQ(n,h)
+    # SQ(n,total)
+
+    variable SQ
+
+    set SQ(w) [image width $SQ(img)]
+    set SQ(h) [image height $SQ(img)]
+
+    ;# Compute size of tile with specified number of rows and columns
+    set SQ(sz,w) [expr {($SQ(w) - 2 * $SQ(target,margin,left)) / $target_cols}]
+    set SQ(sz,h) [expr {($SQ(h) - 2 * $SQ(target,margin,top)) / $target_rows}]
+    if {$SQ(sz,h) <= $SQ(sz,w)} {
+        set SQ(sz,w) $SQ(sz,h)
+        set SQ(margin,top) $SQ(target,margin,top)
+        set SQ(n,h) $target_rows
+
+        set SQ(n,w) [expr {($SQ(w) - 2 * $SQ(target,margin,left)) / $SQ(sz,w)}]
+        set SQ(margin,left) [expr {($SQ(w) - $SQ(sz,w) * $SQ(n,w)) / 2}]
+    } else {
+        set SQ(sz,h) $SQ(sz,w)
+        set SQ(margin,left) $SQ(target,margin,left)
+        set SQ(n,w) $target_cols
+
+        set SQ(n,h) [expr {($SQ(h) - 2 * $SQ(target,margin,top)) / $SQ(sz,h)}]
+        set SQ(margin,top) [expr {($SQ(h) - $SQ(sz,h) * $SQ(n,h)) / 2}]
+    }
+    set SQ(n,total) [expr {$SQ(n,w) * $SQ(n,h)}]
+}
+proc ::Baseshape::_SizeAdjust {size delta} {
+    variable SQ
+
+    set size0 $size
+    set size [expr {$size + $delta * $SQ(size,adjust)}]
+    set size [expr {max(2, $size)}]
+    if {$size != $size0} {
+        Logger "Adjusting puzzle size from $size0 to $size"
+    }
+    return $size
+}
+
+proc ::Baseshape::_AddQuestionMark {img {centers {}}} {
+    variable SQ
+
+    if {$centers ne {}} {
+        lassign $centers cx cy
+    } else {
+        set cx [expr {[image width $img] / 2}]
+        set cy [expr {[image height $img] / 2}]
+    }
+    set qx [expr {max(0, $cx - [image width ::img::quest] / 2)}]
+    set qy [expr {max(0, $cy - [image height ::img::quest] / 2)}]
+
+    $img copy ::img::quest -to $qx $qy
+    lassign $SQ(quest,delta) dx dy
+    $img copy ::img::quest_white -to [expr {$qx + $dx}] [expr {$qy + $dy}]
+}
+proc ::Baseshape::_Pixelate {source dest} {
+    # Obscures source image by pixelating and saves into dest
+    variable SQ
+
+    set factor $SQ(blur,factor)
+
+    [image create photo ::img::smaller] copy $source -subsample $factor $factor
+    $dest copy ::img::smaller -zoom $factor $factor -compositingrule set
+    image delete ::img::smaller
+    return $dest
+}
+
+proc ::Baseshape::_AddOutline {good_tile outline_tile result_tile} {
+    image create photo $result_tile
+    $result_tile copy $good_tile
+    $result_tile copy $outline_tile
+}
+
+proc ::Baseshape::_RectFrame {source dest x0 y0 x1 y1} {
+    set w [image width $source]
+    set h [image height $source]
+
+    image create photo $dest -width $w -height $h
+    $dest copy $source -from 0 0 $w $y0
+    $dest copy $source -from 0 0 $x0 $h
+    $dest copy $source -from 0 $y1 $w $h -to 0 $y1
+    $dest copy $source -from $x1 0 $w $h -to $x1 0
+}

@@ -20,6 +20,7 @@ exit
 #
 # potd_2024_04_29_c.jpg
 # TODO
+#  always resize option (based on image magick)
 #  resize with ImageMagick if Wikipedia size is incorrect?
 #  BUG: did tiles.png crop too big???
 #  BUG: potd_2007_01_14_c.gif errs with "too many colors"
@@ -74,11 +75,16 @@ exit
 #  DONE: wiki_potd bug with commons extracting day_url
 #  DONE: pick random from favorites
 #  DONE: potd_2006_11_24_c.jpg and potd_2024_02_16_c.jpg reported size incorrect
+#        potd_2014_05_30_w.png
 #  DONE: tallymark for single/solve
 #  NO: potd_2005_05_30_c.jpg too small tiles: ratio .57 but small overall size 344x599
 #  NO: detect "deleted image" image : potd_2010_04_30_w.png, potd_2007_01_11_w.jpg, potd_2012_03_13_w.png
+#  DONE: default to Ell, Ess, Hexagon, Octagon, Trapezoid
+#  FIXED: hitting solve still does Perfect
 #
-
+# HARDEST:
+#   potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
+#   potd_2020_11_07_c.jpg "Heap of cans outside the South Korea Pavilion of Expo 2015."
 #
 # Other image sources:
 #  download random Wikimedia Commons images:
@@ -128,7 +134,7 @@ set S(explode,delay) 100
 set S(local,current) ""
 set S(potd,current) ""
 set S(click,who) "None"
-set S(themes.start) {}
+set S(themes.start) {Ell Ess Hexagon Octagon Trapezoid}
 
 set S(tempdir) [fileutil::maketempdir -prefix jigsaw_tiles_]
 set S(local,cwd) ""
@@ -153,6 +159,7 @@ set ST(preview,onoff) on
 set ST(difficulty,raw) -1
 set ST(inifile,onoff) off
 set ST(tallyfile,onoff) off   ;# Set true to keep a log of every potd image downloaded
+set ST(alwaysResize,onoff) 0
 
 
 set STATS(pretty,time) "00:00"
@@ -215,9 +222,112 @@ set FAVORITES {
     potd_2015_08_30_w.jpg "Nighthawks is an oil painting on canvas completed by the American artist Edward Hopper in 1942."
     potd_2018_07_08_c.jpg "Ceiling of the Historical Court Bower, Lübeck, Schleswig-Holstein, Germany"
     potd_2023_08_08_c.jpg "Interior of the main hall of the Museum of the History of Polish Jews in Warsaw, Poland."
-    potd_2011_12_30_w.jpg "Pure (99.97+%) iron chips, electrolytically refined, as well as a high purity 1 cm3 iron cube for comparison."
+    potd_2011_12_30_w.jpg "Pure (99.97+%) iron chips, electrolytically refined, as well as a high purity 1\xA0cm3 iron cube for comparison."
     potd_2019_11_07_w.jpg "The Pool of Bethesda was a pool of water in the Muslim Quarter of Jerusalem, on the path of the Beth Zeta Valley."
     potd_2018_04_20_c.jpg "A tape head cleaner cassette made of clear hard plastic."
+
+    potd_2023_05_29_w.jpg "Mount Everest is Earth's highest mountain above sea level, located in the Himalayas along the China–Nepal border."
+    potd_2004_12_01_c.jpg "Pope John Paul II during General Audiency, 29 September 2004, St. Peter Sq., Vatican"
+    potd_2004_12_24_c.jpg "Port wine"
+    potd_2005_02_27_c.jpg "Castel Sant' Angelo, Rome"
+    potd_2005_04_11_c.jpg "Sunset in Frankfurt am Main"
+    potd_2005_09_20_c.jpg "Astronaut Stephen K. Robinson anchored to a foot restraint on the International Space Station’s Canadarm2"
+    potd_2006_04_05_c.png "Voivodships of the Polish-Lithuanian Commonwealth."
+    potd_2006_05_22_c.png "Exploded view of a personal computer."
+    potd_2007_01_28_c.jpg "The McCormick Tribune Campus Center at the Illinois Institute of Technology, Chicago, Illinois"
+    potd_2007_04_21_w.jpg "Cartographic relief depiction showing the varying age of bedrock underlying North America."
+    potd_2007_06_20_c.png "A diagram of the human eye."
+    potd_2007_07_01_w.png "An animated image showing the territorial evolution of Canada, that is, the dates when each province and territory were created."
+    potd_2007_07_18_c.jpg "Concretepaver blocks"
+    potd_2007_08_09_c.jpg "The flying gurnard, Dactylopterus volitans, in the Mediterranean sea."
+    potd_2007_12_06_c.jpg "A bouncing ball captured with a stroboscopic flash at 25 images per second."
+    potd_2008_02_13_c.jpg "Terrace rice fields in Yunnan Province, China."
+    potd_2008_03_26_w.jpg "The School of Athens or 'Scuola di Atene' in Italian is one of the most famous paintings by the Italian Renaissance artist Raphael."
+    potd_2008_05_06_c.jpg "Map of the county of Flanders by 1609"
+    potd_2008_05_29_w.png "A diagram of the human respiratory system, which consists of the airways, the lungs, and the respiratory muscles that mediate the movement of air into and out of the body."
+    potd_2008_06_17_w.jpg "The 71st plate from German biologist Ernst Haeckel'sKunstformen der Natur, showing radiolarians of the order Stephoidea."
+    potd_2008_06_28_c.jpg "A fire in Massueville, Quebec, Canada."
+    potd_2008_08_12_c.jpg "Singer Veli Antti Hyyrynen of the Finnish thrash metal band Stam1na live at Nosturi, Helsinki"
+    potd_2008_12_23_w.jpg "An 1885 lithograph of a bird's-eye view of the city of Phoenix, Arizona, the fifth-most-populous city in the United States."
+    potd_2009_01_23_c.jpg "Kinderdijk windmills, Netherlands."
+    potd_2009_02_01_c.png "Iowa class battleship main battery turret."
+    potd_2009_02_04_c.jpg "A photochrome print of the front of Neuschwanstein Castle, Bavaria, Germany taken as few as ten years after the completion of the castle's construction"
+    potd_2009_02_08_c.jpg "Hygieia fountain in the city hall courtyard, Hamburg, Germany"
+    potd_2009_03_07_c.png "Royal coat of arms of the United Kingdom"
+    potd_2009_04_27_w.jpg "An 1836 lithograph of Mexican women making tortillas, which are an unleavenedflatbread and have been a staple of Mesoamerican food for centuries, dating to approximately 10,000 BCE. The name 'tortilla' comes from the Spanish word 'torta', which means 'round cake'."
+    potd_2009_11_14_w.jpg "An African American man climbs the stairs to a theater's 'colored' entrance in Belzoni, Mississippi, in 1939."
+    potd_2010_01_21_c.jpg "USS Bunker Hill hit by two Kamikazes in 30 seconds on 11 May 1945 off Kyushu."
+    potd_2010_07_12_w.jpg "An M777 Light Towed Howitzer in service with the U.S. Army10th Mountain Division in support of Operation Enduring Freedom in Logar Province, Charkh District, Afghanistan."
+    potd_2010_09_05_c.jpg "National Chiang Kai-shek Memorial Hall in Taipei (Republic of China)"
+    potd_2010_09_10_c.png "Illustration showing the anatomy of a mosquito (Culex pipiens)"
+    potd_2011_03_31_c.png "Bevel gear (toothed wheels)"
+    potd_2012_01_09_c.jpg "Varanasi, India as seen from Ganga river."
+    potd_2012_03_08_w.jpg "A human eye displaying partial heterochromia iridum, where part of one iris is a different color from its remainder."
+    potd_2012_04_29_c.jpg "Horse and rider in an obstacle race."
+    potd_2012_05_18_c.jpg "Northeast Pavilion."
+    potd_2012_09_08_c.png "Łęczyca Voivodeship coat of arms."
+    potd_2012_10_23_w.jpg "A view of the internal components of a 1998 Seagatehard disk drive (HDD)."
+    potd_2012_12_06_c.jpg "Yak near Yamdrok lake, Tibet."
+    potd_2012_12_08_c.jpg "Railway station in Kreiensen in the district of Northeim, Lower Saxony, Germany in the year 1963."
+    potd_2013_07_01_w.jpg "Poster for Queen Christina, a Pre-Code Hollywood biographical film produced in 1933 and directed by Rouben Mamoulian."
+    potd_2013_10_28_c.jpg "Main facade of the Academy of Athens, Greece"
+    potd_2014_01_14_w.jpg "The Humble Oil Building in Houston, Texas, was completed by the Humble Oil and Refining Company in 1921."
+    potd_2014_04_01_c.jpg "Eastern span of the San Francisco–Oakland Bay Bridge."
+    potd_2014_07_24_c.jpg "Birdy at the SWR3 New Pop Festival in Baden-Baden 2013"
+    potd_2014_09_22_c.jpg "The Petite Ceinture railway line ('Little Belt railway') passing through the parc Montsouris, 14th arrondissement of Paris, France."
+    potd_2014_12_15_w.jpg "An aerial view of Manhattan in 1873, with Battery Park in the foreground and the Brooklyn Bridge under construction at the right."
+    potd_2014_12_30_w.jpg "The Half Dome is a granite dome in California's Yosemite National Park, whose summit at elevation 8,844\xA0ft (2,696\xA0m) is more than 4,700\xA0ft (1,400\xA0m)* above the floor of Yosemite Valley."
+    potd_2015_02_07_w.jpg "The Old Town of Prague, Czech Republic, is a medieval settlement."
+    potd_2015_05_20_c.jpg "Flanges in the tool shed of the Quarzwerke in Sythen, Haltern am See, Germany"
+    potd_2015_05_22_c.jpg "Saint Basil's Cathedral in Moscow at night."
+    potd_2015_06_29_c.jpg "Plastic pipes in the tool shed of the Quarzwerke in Sythen, Haltern am See, Germany"
+    potd_2015_07_11_c.jpg "Lettering guides for technical drawings."
+    potd_2015_08_18_c.jpg "Elephant Rock in the cliffs of the island Heimaey, Westman Islands, Suðurland, Iceland."
+    potd_2015_12_01_c.jpg "Fireworks over Ponte Vecchio in Florence, Italy."
+    potd_2016_02_05_c.jpg "Niels Simonsen, Retreat from Dannevirke, 1864, 1864, Det Nationalhistoriske Museum på Frederiksborg Slot Episode of the retreat from Dannevirke, 5 - 6 February 1864 - Battle of Sankelmark and Oeversee."
+    potd_2016_04_22_w.jpg "A banknote for two Massachusetts shillings, or 1/10 of a Massachusetts pound, dated 1 May 1741."
+    potd_2016_05_10_c.jpg "Library of Altenburg Abbey, Lower Austria"
+    potd_2016_05_12_w.jpg "The Art of Painting is a 17th-century oil painting on canvas by Dutch painter Johannes Vermeer."
+    potd_2016_05_19_c.jpg "Pipe organ of the church of the Society of Jesus (La Iglesia de la Compañía de Jesús), a Jesuit church in Quito, Ecuador."
+    potd_2016_06_22_w.jpg "A lithograph by Thaddeus Mortimer Fowler showing the town of New Kensington, Pennsylvania, in 1896."
+    potd_2016_07_17_w.jpg "Ty Cobb (1886–1961), shown here sliding into third base on August 16, 1924, was an American Major League Baseball (MLB) outfielder."
+    potd_2016_08_15_w.jpg "Shane Tuck, a United States Navy mass communication specialist, conducting underwater photography training off the coast of Guantanamo Bay, Cuba, in 2012."
+    potd_2016_11_04_c.jpg "Old diesel locomotive TEM2M-063 in Vinnitsa railway station, Ukraine."
+    potd_2016_12_13_c.jpg "The Palace of Justice in Munich was constructed in 1890-1897 by the architect Friedrich von Thiersch in neo-baroque style at the west side of Stachus."
+    potd_2016_12_23_w.jpg "Nuremberg is a census-designated place in Schuylkill and Luzerne counties, Pennsylvania, United States."
+    potd_2017_01_14_c.jpg "Shinjuku is a special ward in Tokyo, Japan."
+    potd_2017_03_31_c.jpg "Main hall of BerlinCentral Station with incoming S-Bahn train."
+    potd_2017_05_20_w.jpg "A Company of Danish Artists in Rome, painted by Constantin Hansen in 1837."
+    potd_2017_06_22_w.jpg "The Evening Air, a c. 1893 oil painting on canvas by Henri-Edmond Cross (1856–1910)."
+    potd_2017_11_15_w.jpg "A collection of sixteen wood samples, from left to right, top to bottom:"
+    potd_2018_03_05_w.jpg "A ten Canadian dollar note, dated 1935."
+    potd_2018_03_14_c.jpg "Fractal forms on the coverside of a microwaved DVD"
+    potd_2018_04_25_w.jpg "This Leica\xA0I camera was produced in 1927."
+    potd_2018_05_04_c.jpg "May 4 is a traditional Firefighters' Day in many European countries."
+    potd_2018_06_18_w.jpg "A 15-cent banknote depicting Union Army generals William Tecumseh Sherman and Ulysses S. Grant, dated 1866 and intended as part of the fractional currency introduced to the United States following the American Civil War."
+    potd_2018_08_05_c.jpg "North wing of the cloister at Zwettl Abbey, Lower Austria"
+    potd_2018_08_11_c.jpg "Entrance hall of the regional court of Berlin located in Littenstrasse 12-17 in Berlin-Mitte."
+    potd_2019_08_25_w.jpg "Wemyss Bay railway station serves the village of Wemyss Bay in Inverclyde, Scotland."
+    potd_2019_12_08_w.jpg "Dustin Brown (born 8\xA0December\xA01984) is a Jamaican-German professional tennis player."
+    potd_2020_01_04_w.jpg "A Louis d'or is a French gold coin, first introduced by Louis\xA0XIII in 1640, featuring a depiction of the head of a King Louis on one side of the coin, from which its name derives."
+    potd_2020_02_09_c.jpg "Interior view of the Holy Cross Church in Dülmen, North Rhine-Westphalia, Germany"
+    potd_2020_04_20_w.jpg "Duke Humfrey's Library is the oldest reading room in the Bodleian Library at the University of Oxford."
+    potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
+    potd_2020_11_04_c.jpg "Panorama road between Waltensburg / Vuorz and Breil/Brigels."
+    potd_2020_11_07_c.jpg "Heap of cans outside the South Korea Pavilion of Expo 2015."
+    potd_2021_01_13_c.jpg "Dunes and shadows in Sossusvlei, Namibia."
+    potd_2021_01_19_c.jpg "Interior of Santa Isabel Theater in the Brazilian city of Recife, capital of Pernambuco state."
+    potd_2021_03_30_w.jpg "Vincent van Gogh (30\xA0March\xA01853\xA0– 29\xA0July\xA01890) was a Dutch Post-Impressionist painter and one of the most famous and influential figures in the history of Western art."
+    potd_2021_10_23_c.jpg "The Stata Center, an academic complex at the Massachusetts Institute of Technology designed by Frank Gehry"
+    potd_2022_06_14_w.png "The checker shadow illusion is an optical illusion published in 1995 by Edward Adelson, an American professor of vision science at the Massachusetts Institute of Technology."
+    potd_2022_07_13_c.jpg "The Oval Hall of the Saint Michael's Castle in Saint Petersburg, Russia"
+    potd_2022_07_24_c.jpg "Guard at the Prague castle, Prague."
+    potd_2022_07_27_c.jpg "The Mircea (ship, 1938) moored at the embankment 'Quai d'Alger' during the event 'Escale à Sète 2022'."
+    potd_2022_09_19_w.jpg "Women took on many different roles during World War\xA0II, including as combatants or workers on the home front."
+    potd_2023_02_27_c.jpg "Oranges – whole, halved and peeled segment"
+    potd_2023_03_13_w.jpg "The Olympus OM-D E-M1 Mark III is the third iteration of the flagship camera in the series of OM-D mirrorless interchangeable-lens cameras produced by Olympus on the Micro Four-Thirds system."
+    potd_2023_03_19_c.jpg "Royal pavilion in Phraya Nakhon Cave in Khao Sam Roi Yot National Park, Prachuap Khiri Khan province, Thailand"
+    potd_2023_05_26_w.png "Thyroid hormones are hormones produced and released by the thyroid gland, namely triiodothyronine (T3) and thyroxine (T4)."
 }
 
 set text_font [concat [font actual TkDefaultFont] -size 15]
@@ -257,7 +367,7 @@ proc DoDisplay {} {
     ::ttk::frame .left -relief ridge -borderwidth 2
     ::ttk::frame .bottom -relief flat -borderwidth 0
 
-    ::ttk::label .logo -image ::img::icon2 -borderwidth 2 -relief ridge -anchor c
+    ::ttk::button .logo -image ::img::icon2 -command AboutDialog
 
     # Themes frame
     ::ttk::frame .themes -relief ridge -borderwidth 2 -padding .1i
@@ -351,7 +461,7 @@ proc DoDisplay {} {
 proc ButtonBar {bar} {
     global BB
 
-    set TT(Puzzle) "Obscure some tiles\nfor added difficulty"
+    set TT(Puzzle) "Expert mode with some hidden tiles"
     set TT(Timer) "Toggles showing a puzzle timer"
     set TT(Magic) "Toggles the Magic dialog with\nsome hidden functionality"
     set TT(Date) "Toggles the Date Download dialog"
@@ -375,7 +485,7 @@ proc ButtonBar {bar} {
             -command [list DialogOnOff $who toggle] -text $who -compound top
         ::tooltip::tooltip $w $TT($who)
         pack $w -side left
-        if {$who eq "Puzzle"} { $w config -command Puzzle -text "Expert"}
+        if {$who eq "Puzzle"} { $w config -command Puzzle -text "Expert off"}
         if {$who eq "Desc"} { $w config -text "Descriptions"}
     }
     bind .bbar._Favorites <2> ::Favorites::Random
@@ -462,6 +572,7 @@ proc CreateLogsDialog {} {
     set S(logger) $body$top
 
     text $S(logger) -font $::text_font -wrap word
+    $S(logger) tag configure emsg -foreground red
     pack $S(logger) -side top -fill both -expand 1
     wm withdraw $top
 
@@ -693,71 +804,25 @@ image create photo ::img::quest_white -data {
     OjU1KzAwOjAwEkByMQAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyMy0xMC0xNlQyMjowNjo1NSswMDowMGMd
     yo0AAAAodEVYdGRhdGU6dGltZXN0YW1wADIwMjMtMTAtMTZUMjI6MDc6MzgrMDA6MDB8cugrAAAAAElF
     TkSuQmCC}
-# https://www.iconfinder.com/search/icons?price=free&q=eye
-image create photo ::img_icon::eye_on -data {
-    iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAADoUlE
-    QVRoge2ZW0tUURTHV/WUjX6GsrKHIggruo23nEqyQrohEXT5BFkRSE/VCPUaFFlvUVCpiSWBlVpJzyWl
-    fgIrI6mmCyhU6+/ZA7Jmn733uThCnD/8YJhZt33OvqxzhihRokSJ/gelmD1MG9PLjDGTzLRiUn2H37JM
-    I7NkXiqdpYXMLqaL+cX8DQh8OpgdzIJiFo5kB5iREEX78Y5poiIMpJx5GmPhkpfMqrkq/gjzw5D8A3OH
-    OcFsYSqYUqZMfcZ3J5m7zEdDnBzTHGfhuK2XfZL9IW9h1oWIWc88UTF0sbMUw5RCgJs+CYaYNVETsNYy
-    r31yXKOIg7iiCfqbOU3eLhSXFjFnVGyZry1s0GZNsK/MtojFmpRWOWTeo0EDraDCBTvBrHPwzZA37cZU
-    DDDKtJM3722qZD6L3FjY5a7FY871iwBTzGaLH3aaF6Sfy7MZZFZaYuEuTwu/Z64D2K9J2mLxqSKvXXDd
-    72GbtsQ8q/HbZyseC1OesDi4TDtBRcDi83whb6r6STcThi21UINwwB693uRA+mnTzVST17CBGqZHYzdg
-    ib2RCs+JjMmhSxh3WhJkNEWdM9i3auy3W3I8FPYP/AzREsuustoSXB5y3RZ76JHwuWGxrxX22NVKdIaN
-    wvATeQeMSWMUbMC6gkYt9qhhQvg06AzbKNiVgXLCJ+XgUyp8cg4+8k5f0hllhVG7Q+AwAygTPt8cfG6R
-    wwB2C6MwU6jGoZg64TNisXeeQtjufgrDKktweWt7HAbwWPjEtoihTmHcYQleL+xBq8H+vMbe9iwht9F7
-    JuOdwhiHSKUlwaCmKGyVuHIpBYqUVx70W2JvoMKDzHhu4Jh+LxxsrQQas7lqJZ4Ln7eWWmbUpElma+bS
-    qqAgxYdp5vbaiod0I3dpp3EnBhyKx7QxXXlI1073uRSf13Iq3OOxrbo80GCOYmcZUTFy6jO+c3n41z3Q
-    fGeWBhkAdJgKrx4e97YGDRRA6D51U/Fg2ICyvQBo+E5RvA/1iNVC+leUF6IExnq4rgkKXjGrowRXwquZ
-    IZ8cV2OIPzMI3Z3InxPY32tDxMV66CX/F1sXoxYuhdcscmHPZpy5zRxjNjHLyDvyS9Rn7GLHlc24IQ4W
-    7KG4i88LhfQZkkdlkOxvLGIR3g4Mx1j4G/L+ICmqsDbwTIxnVNnFuoCu8j5550ZR/+DQCfMcPToWHho5
-    HFzoj6YUk+o7/IZtEf/sLJ6XShMlSpQoVv0DlBBlzZxIWhIAAAAASUVORK5CYII=}
-image create photo ::img_icon::eye_off -data {
-    iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAADzElE
-    QVRoge1aSWxNYRQ+lYgEiZgSLCyImKI2htAWFVpDE5qgr4hYNbGwtREhoV3Y0hYhTYSKoQsxKwuVsNFN
-    g4ompphLxVBzcY7/vrzr3HP/4b3/tSpO8iV9953pe///n3PPvQX4L3+nDOzpBDKRXMRzxNqeTiQdoeTb
-    ET8R36GXkaBt8wxU8kl8Q5T1ZFKukgCVtCsJIr8EUYU4jbiD6EB8Dew7gmtnEJWIEsQA/+krcSWxG/GR
-    6duAbE4gihA5vkmUOZCYCOrQuxII4yai1DeRFQKJuIM9HvEkQxKEpsCXN3FdiV2INYipiGHBdfpVhwfX
-    6LtqxD0NifeIcp8kEkIQH9UpH1EPalUlInTYvWypnTEBfJXYyYiLMTFqIEMSm2Ic+yZBSVYgPgkxqtJ1
-    uhrxgzl7Ben1CVuZAXJFS7g6GgWq+YSd0OdccDvYVFFaEW2IfYj5FrEnCSToYI9xIXCSOehEzAx9n0mf
-    uGKRDK0E306XbJNfDtEl3CjoZUKCtmKBIY8KIY9lNgSuM6NGiK8EmZB4DfqVoJi8OrVocvktecygC1SZ
-    00kzRH8pl+2kE4rN+8RCncExptxgCFAkJO9KotAQo575PR6n2BfxjinPNjiv0xCwJbHHEKOA+fyA6C8p
-    5jPFp2Dugm3Mphbcz0SrIQbJfeZzsaS0jSnttXD8hdkMAveDbUOghvnbISlVMqUaC8e8Vg8JrruQGGcR
-    p5r52i4pLWVKDywc32U2xaHvXEiYhN9+L5CUaEbtZIp5BscHmf5Z+PPc+CDBS3snaObpBqZ8xOBcKqNb
-    PZM4zGwP6ZSLhUC6RkaJXhVInEMsQgxFDAZVKm1LbFgmQLSRFekMKKFbzOCCRZA3QoI2MJHgtxLNYDHg
-    lAqBNhhs5maBBM3U/La6xJQ8CTG8zAypXE432NFKNFkk3Azp3QCet0k+KWNBDRHhIO2BQ50QeSpxdaCe
-    xL1FfA7+PgCp8ufa7Khcj3YhQFIO0V/vBWKWq6MYcSHRL90gVRAlQduJzoSPRx4+m50olGQtyHuZRrwp
-    HmJsEXx7JyGtBIEGnqOIeYg+Dj5Jdw6oe/uuGN/eH+3TmeAHO4yHiP2IdaCG8hGgmhjt35GIaYj1oJ5O
-    PNL4ySoJmmEbLYOng2sQ7bxZeclCTwdaPCZ+A1KzbqK7SOQEQWkf87tYG9D4Sv2iEKIVrdtIJIVmVBrz
-    aNA4hbgNqVdM9CbmMagVowdmm0E1NHGuDUkciVX+08+eSCToRWTW3q9lQ1ZCqtm9BD+9p9uFSNBTkl6Z
-    fFJ69b8//LvyC9CztXTEOuhOAAAAAElFTkSuQmCC}
-[image create photo ::img_icon::puzzle] copy ::img_icon::eye_on
-# image create photo ::img_icon::puzzle -data {
-#     iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAFb0lE
-#     QVRoge2YeWwUdRTHZ3dLk7WFRFP+gLaL8Q8D9g9jIiEpVHugJoKUQls5YqImKgHE3oV2li2hJRH+8T8N
-#     Go2IR1oKidQEjEkvrRf23u7Rc7cz28pStQXaSo/ne9OddXd2d/bosdvoL/lmZ+b35rffz+x7b2aWYf4j
-#     IxdVGkEqRiUEAzCHgggTGwwAHH87HyyWURjmbjs1ODQCJrM1YNE6BYXFwNvsi5IDoCJogPuT0yCOmZlZ
-#     GBi0rU6AUMxHDECo5iMCYHz8XsjmRYDsnJeh4kwlVFSchYbGH1YWwNw7HLJ5EcBVUVFrgGV1KwewGPOk
-#     jfHxkJWVDY1NP0Pz97/Cnsx9oFAooKbm2uoAkKpb3w9xcesRav/qBCBt3vwEpKWlrw6AqqrzUPfNd879
-#     K7XXQaWKCrozhQ1AqVSCWq3GTnQAcnIOCtuaTZuwOQyFD6C1rQeOHnsHUp5JhV279sClS1/JdqGEhERY
-#     u3adoOzsXOjsMgqmTOZByMsvFNIpMzMLqquvLj9Ay4+tsGHDxlnsJHOodrzCduoqJaXlPgG8pUtHpwE0
-#     Gg2mkwq2bEnCwo4TupOvFrtkALt3Z86j6Umcf9oRF436DI3M3bhZHzAAdSG1+iGovVrn7E7UYuk+0djU
-#     snwAmMP0mH1REhtP8WVluoABYmNjITf3kFtsU/MvQjzdsZcNICYmZhbnPpLEJgYLINQDFrZrbEPjTwsA
-#     +NixJADJyTugqOiUm6ggMYWmcD7JJfZTiqcrKo2n4ykpz0JZudZNlP/UkVxb7N69+4X4w4df8YgPGgBN
-#     Ghnfb0aURq+LsVh8VplYn6IWe+7cBScAPXb4OSdwgCUcS3I/WRIAJcu9SlodAKds670ANJACiQ0rgPI0
-#     95pSy91jdCOP+gXAGIqlcyIGgCmzxqPRuwqWr5YAeKSQQsvX4LH7TDmXuGwAJksIXUjLsQhQx+i6o30G
-#     4RzFIEC5zFKwdes2yNj5PKRnPAeVVe+CEQ0FA6DvGfADoAMlKsrjmNv+nXUMO5LEsNxTHlAesbjWv8cc
-#     LVM1gG2zn7ZTUzPmDMahgAE6OnrlAZRa25tKLW9UscMvesKNPqbQcp/j/DQKBLH8lILlvmB0vEYariof
-#     TseYTuVp/g3HoY9RrvVxlMzQe0Ig5nsMQ9DWZpIHUGn5F/BLzQ5zh5wTWn47pofdadxD3ARTZhMf6rD4
-#     +YOOOTOt6fXLGOEm2Ufp5B/AIlx9vwALV7o7Gr/4OJNvVQv7Jy0PIwzv27z4a3B2Rmd9RDgHzxXWkKsb
-#     BwDVhD+Abv2AYD4wAMnA7lIpmtzxoR1Kb47D9ot22PbBbSi+MS58ivNYyGdklvqEcU+hY2TG9RHCd+qY
-#     QwfAq99B5rK/HIP5+YX/RulT3J6dA3jp8pgI0SqzlFjEg2IRp6XtnJPrRAajxc18aABa/i8yd7Z+Aqq7
-#     JiHh/CiY7sxA79gMaC6MQv8fs/C1YUpMo7tyAGIbJVHxypk3moagvd3dfIi/APe7NN+TMYVItP2b7QF8
-#     2zstAozIAQR6I9P3DHpc+cXUQI0UIFrHQwnWQov1byGNqBaEGtDy1xcDQL9IV1efV+MhA6hY2z4pAJmn
-#     QQBkfo1u4Ti2zMxQAIyY6/Qu7OuqLwqAyQEVmutzBaCUucU/kLZRg8edWAIgvtkVkgpPQkFBCeTlFcOJ
-#     E0UBK3gARqgDravZ+oFpQZKbWYHsGvJvdgGL/sbBzwNBATDs8JP+ABgd93hwi67koDTCR2WfACz/J12c
-#     cNuUHQigl/kF5G5gkTFUpfrLypKuW6T3m/kJkrhPc+H253eo3rrSEHWkFryJ5sLtz+9Y/QBHat8jo16F
-#     c+H29/8Ix/gHDWWkaFI+bHQAAAAASUVORK5CYII=}
+# https://www.iconfinder.com/search?q=brain&price=free&style=outline
+image create photo ::img_icon::puzzle -data {
+    iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAQAAAD9CzEMAAADg0lEQVR42u3Y22vXdRzH8YfL6cRDW1la
+    oaZLnIkRiYGYs3AG85QHnFSUrOnEkWJSaGhq2rBwqUtDxG52qWBmW1KCSVm6Qtmch7A5LTNkMJfm3HKn
+    bxBe7Mvv99t+btKVj9cf8ORz9YG3e+6OJ+TY6ZBzav/bBWX2WWO6PrqojyVOCly2T75F5pphjjcss0Op
+    evX2mKabTkmwUI1qG4wWXZLZdrvlZxnuWIqv1FkpCWH9DdDWUEVa7NKL+PVX4bQRIhVoFtirh7bSXVZh
+    kDglKnVCChJMkNFmi92Saaxqi4U95IhfPSIuH7liAHhOILxKUKwQYX0dc1ofHRqrxWTAJC3aGq5RoTUa
+    TREp2QW7dKjYfmIEyPSjMgtFN16z6do1SqsxEYH4bfaL+4jtfWXECAw0UyoAHnNQvWNGAuBhdV4ltgrv
+    xQi8qEGdFosAlCg1Q4mT2ipwUkz9tJgQCrRacXvnbcUSN3QH1JiLsQK9ATBCYLQY0gUeDAUCx2+vXg4m
+    atUXcNBh6XY7K+yEdWKY7zrCLwD4QK0dLtkLYLAfBCo8JWyj78SwUnnMQII8e6ySBIAUgacRlqlBd1Gt
+    dxQ8a5Uvlboo8KmZ+gmJCAxT5IBswCCB4aJa55hXVAicUWipXGuUuOq6de6PGejpd4cUqJcNurkpU1TL
+    BeoVGqatHnJU+ltVxC4K/OGyJr2wTQngN6+JapszHhdNogKtTskVueVaZUpWaiegzFIi9XHNfLHNVK9A
+    NPlaBSoNBpRZQqRcNZK0Z4pGK0QzxHiJAE5bTKQym3QkS5NskWYrV+VtwBVZIozTIlXHFmgyT0poz2iW
+    b5kGc9Bdk4kiFPlafN4SxPjpvrANIwUeJay/Bi+J10K3HDfZmNt7WZMsz6uRi3lqRHjHJfeJ3zjnVFsg
+    CbBag2ZFErFdMWEJzlvtzvTyrlo1NpsqGb301l2aPH9aTtgkjQa6c73l+NxVgToXVGsU+EurVMLyVOmm
+    sxKkSTfLVOM9YKsjIgx1w/dWmSBJ1/RzzetEetIWJzT7x5u6Yr0qie31tzir84aoM1+7hguM0jkJvnVY
+    Nx0ot1bnfKhWqg6tdkpnZGmSIQ5pAmnCks2y3UbtKXBAnMptAvT0gnw/aXZTpYsdBIrFaZomn1nrGzc1
+    OWqDiXrIvnsBMux3yCdm6AfQxUBs/19gkgPak+fjezeLTvgXpZxG6tpfxgUAAAAASUVORK5CYII=
+}
 image create photo ::img_icon::wiki -data {
     iVBORw0KGgoAAAANSUhEUgAAACoAAAAwCAYAAABnjuimAAAABmJLR0QA/wD/AP+gvaeTAAAMIUlEQVRY
     he2Ze2wc13XGf/fO7HuX5JISKZkUFVkPypIdPWxJqSvDLmTDrVG1jRE4dtw6ENAWbdoqNgo1ra3YRooC
@@ -1155,10 +1220,9 @@ proc AboutDialog {} {
     $body.t tag config keyword -font [concat $::text_font -slant italic]
 
     $body.t insert end "$S(title) v$S(version)\nby Keith Vetter, August 2023" title "\n\n"
-    $body.t insert end "$S(title) is a puzzle game where a picture is divided into tiles"
+    $body.t insert end "$S(title) is a puzzle game where a picture is divided into tiles "
     $body.t insert end "and those tiles scrambled. Your goal is to unscramble the picture by "
-    $body.t insert end "grabbing and dragging tiles trying to place them in their correct "
-    $body.t insert end "location.\n\n"
+    $body.t insert end "drag and dropping tiles into their correct places.\n\n"
 
     $body.t insert end "Picture to Scramble" heading1 "\n"
 
@@ -1210,18 +1274,18 @@ proc AboutDialog {} {
     $body.t insert end "\u2022 Right-click on any tessalation will make that "
     $body.t insert end "the only tessalation used in scrambling\n"
     $body.t insert end "\u2022 Right-click on the Scramble button to enable all tessalations\n"
-    $body.t insert end "\u2022 Right-click on \"Save POTD\" will save the image "
-    $body.t insert end "without prompting for a filename"
+    $body.t insert end "\u2022 Right-click on \"Favorites\" to pick one at random"
 
     $body.t config -state disabled
 }
 proc ShowLog {} { wm deiconify .logs }
 
-proc Logger {msg} {
+proc Logger {msg {tag ""}} {
     # Add msg to the log dialog
     global S
     if {$msg ne ""} {
-        $S(logger) insert end "\u2022 [string trim $msg]\n"
+        set msg [string map {\n " "} $msg]
+        $S(logger) insert end "\u2022 [string trim $msg]\n" $tag
     } else {
         $S(logger) insert end [string repeat "\u2501" 30]
         $S(logger) insert end "\n"
@@ -1269,7 +1333,10 @@ proc ::Victory::Message {} {
     # Display a big banner showing success
     global S STATS
 
-    set text [expr {$STATS(bad) == 0 ? " Perfect! " : " Solved! "}]
+    set text " Perfect! "
+    if {$STATS(bad) > 0 || "S" in $STATS(playback)} {
+        set text " Solved! "
+    }
     set font [FitFont $text $S(iwidth)]
 
     .c create text [expr {$S(iwidth) / 2}] [expr {$S(iheight) / 2}] -text $text -fill black \
@@ -1969,6 +2036,7 @@ proc GetPotDImage {{service ""} {override ""}} {
             set txt "PotD is a video"
         }
         destroy .status
+        Logger $txt emsg
         ShowStatus "PotD Fetch Error" $txt button=Again
         return
     }
@@ -1976,6 +2044,7 @@ proc GetPotDImage {{service ""} {override ""}} {
         set desc [dict get $meta desc]
         set txt "Problem downloading $service PotD\nfor $when:\n\"$desc\""
         destroy .status
+        Logger $txt emsg
         ShowStatus "PotD Fetch Error" $txt button=Again
         return
     }
@@ -2024,7 +2093,7 @@ proc _DownloadBestSize {meta all fitness} {
         set iheight [image height $S(img)]
         if {$iwidth <= $maxWidth && $iheight <= $maxHeight} break
 
-        Logger "ERROR: image size claims to $S(iwidth)x$S(iheight) but is ${iwidth}x$iheight"
+        Logger "ERROR: image size claims to $S(iwidth)x$S(iheight) but is ${iwidth}x$iheight" emsg
         incr bestfit -1
     }
 }
@@ -2064,6 +2133,7 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
     if {$S(iwidth) < $S(min,width) || $S(iheight) < $S(min,height)} {
         .c config -width 800 -height 600
         set msg "Picture is too small to scramble: ${S(iwidth)}x${S(iheight)}"
+        Logger $msg emsg
         ShowStatus "Error" $msg button=Again
         .bottom.desc config -wraplength 800
         return
@@ -2072,6 +2142,7 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
         .c config -width 800 -height 600
         set bad [expr {$S(iwidth) > $S(iheight) ? "short and wide" : "tall and narrow"}]
         set msg "Picture is too $bad to scramble:\n${S(iwidth)}x${S(iheight)}"
+        Logger $msg emsg
         ShowStatus "Error" $msg button=Again
         .bottom.desc config -wraplength 800
         return
@@ -2194,7 +2265,7 @@ proc WhichLocalPicture {next} {
 }
 proc CheckSize {iname} {
     # Check if image is too big for screen, and returns how to scale it down
-    global S
+    global S ST
 
     set img [image create photo -file $iname]
     set w [image width $img]
@@ -2209,6 +2280,8 @@ proc CheckSize {iname} {
     set w_scale [expr {int(ceil(double($w) / $S(maxWidth)))}]
     set h_scale [expr {int(ceil(double($h) / $S(maxHeight)))}]
     set scale [expr {max($w_scale, $h_scale)}]
+
+    if {$ST(alwaysResize,onoff)} { return [list True $scale] }
 
     set msg "Picture [file tail $iname] is too big:\n"
     append msg "[Comma $w]x[Comma $h] vs [Comma $S(maxWidth)]x[Comma $S(maxHeight)]"
@@ -2227,6 +2300,9 @@ proc LoadScaledImage {scaling} {
 
     if {$scaling == 1} {
         set S(img) [image create photo ::img::master -file $S(local,current)]
+        set S(iwidth) [image width $S(img)]
+        set S(iheight) [image height $S(img)]
+        set S(ratio) [expr {double(min($S(iwidth), $S(iheight))) / max($S(iwidth), $S(iheight))}]
         return
     }
     if {! [::Baseshape::_HasImageMagick]} {
@@ -2265,7 +2341,7 @@ proc BuildNextImageList {{dirname ""}} {
     foreach ext {.jpg .jpeg .png .gif} {
         lappend S(local,images) {*}[glob -nocomplain [file join $dirname "*$ext"]]
     }
-    set S(local,images) [lsort -dictionary $S(local,images)]
+    set S(local,images) [Shuffle $S(local,images)]
 
     set n [lsearch -exact $S(local,images) $S(local,current)]
     if {$n != -1} {
@@ -2309,15 +2385,14 @@ proc FirstSentence {para} {
     # Given a paragraph of text, extract its first sentence
     # https://stackoverflow.com/questions/3788220/extract-first-sentence-from-string-of-text
 
-    set n [string first "." $para]
-    if {$n == -1 || $n == [string length $para] - 1} {
-        return $para
-    }
+    set n [regexp {[.?!].} $para]
+    if {$n == 0} { return $para }
 
     # All capital words that can end a sentence
     set ewords {
         USA UTC WW1 WW2 WWI WWII "World\\sWar\\sI" "World\\sWar\\sII"
-        "World War 1" "World War 2" "I" "II" "CE" "FC" "D.C." "BC"
+        "World\\sWar\\s1" "World\\sWar\\s2" "II" "CE" "FC" "D.C." "BC"
+        "\[0-9,\]+ m"
     }
     foreach eword $ewords {
         # Turn "... USA." into "... USA@aa."
@@ -2325,7 +2400,7 @@ proc FirstSentence {para} {
     }
 
     # Capital word inside parentheses, e.g. "Larry Bird ... (NBA). Lorem ipsum."
-    set re {(\s\([A-Z0-9]+\))\.}
+    set re {(\s\([[:upper:]0-9]+\))\.}
     regsub $re $para {\1@aa.} para
 
     # Abbreviations that prematurely end a sentence
@@ -2334,7 +2409,7 @@ proc FirstSentence {para} {
         regsub "\\m($abbrev)\\." $para {\1@} para
     }
 
-    set re {(^.*?[a-z0-9\)""]{2,}[.!?]"?"?)\s+\W*[A-Z0-9]}
+    set re {(^.*?[[:alnum:]\)""]{2,}[.!?]"?"?)\s+\W*[A-Z0-9]}
     set n [regexp $re $para _ sentence]
 
     set result [expr {$n ? $sentence : $para}]
@@ -2344,38 +2419,50 @@ proc FirstSentence {para} {
 }
 proc FirstSentenceTest {} {
     set tests {
-        "Hello 1825. Lorem ipsum..." "Hello 1825."
-        "Winslow Homer (1836-1910). Lorem ipsum..." "Winslow Homer (1836-1910)."
-        "The poem \"The Raven\". Lorem ipsum." "The poem \"The Raven\"."
-        "He said \"I love you.\" Lorem ipsum." "He said \"I love you.\""
-        "At 20:43 UTC. Lorem ipsum." "At 20:43 UTC."
-        "New Mexico, USA. Lorem ipsum." "New Mexico, USA."
-        "Issued on Nov. 28, 1921. Lorem ipsum..." "Issued on Nov. 28, 1921."
-        "Fight in World War I. Lorem ipsum." "Fight in World War I."
-        "Mrs. Bill Stagg of Pie Town. Lorem ipsum." "Mrs. Bill Stagg of Pie Town."
-        "The match me vs. you. Lorem ipsum." "The match me vs. you."
-        "Seated are Gens. Grant and Sherman. Lorem ipsum." "Seated are Gens. Grant and Sherman."
-        "In World War\xA0I. Lorem ipsum." "In World War\xA0I."
-        "Under Charles I and Charles II. Lorem ipsum." "Under Charles I and Charles II."
-        "Roman sculpture dating from about 125 CE. Lorem ipsum." "Roman sculpture dating from about 125 CE."
-        "The American club New York City FC. Lorem ipsum." "The American club New York City FC."
-        "Photograph ca. 1847 hand-tinted. Lorem ipsum." "Photograph ca. 1847 hand-tinted."
-        "Martin Ryckaert (bap. 1587 – 1631) was a Flemish painter. Lorem ipsum." "Martin Ryckaert (bap. 1587 – 1631) was a Flemish painter."
-        "Maya Lin's monument Washington, D.C.. Lorem ipsum." "Maya Lin's monument Washington, D.C.."
-        "Somewhere in North Africa. Lorem ipsum." "Somewhere in North Africa."
-        "The Complex ... 1950 BC. Lorem ipsum" "The Complex ... 1950 BC."
-        "Dennis Schröder ... (NBA). He previously ...." "Dennis Schröder ... (NBA)."
-        "Lorem ... 1,500 m. Lorem ipsum" "Lorem ... 1,500 m."
+        "This is a test."
+        "Is this a test?"
+        "This is a test!"
+        "This is a simple test. Lorem ipsum."
+        "Is this a question? Lorem ipsum."
+        "This is a test! Lorem ipsum."
+        "The year was 1825. Lorem ipsum."
+        "Winslow Homer (1836-1910). Lorem ipsum."
+        "The poem \"The Raven\". Lorem ipsum."
+        "He said \"I love you.\" Lorem ipsum."
+        "See you at 20:43 UTC. Lorem ipsum."
+        "See you at 20:43 UTC. on friday. Lorem ipsum."
+        "I'm flying to New Mexico, USA. Lorem ipsum."
+        "The coin was issued on Nov. 28, 1921. Lorem ipsum."
+        "He died fighting in World War I. Lorem ipsum."
+        "He died fighting in World War\xA0I. Lorem ipsum."
+        "He died fighting in World War 1. Lorem ipsum."
+        "He died fighting in World War\xA01. Lorem ipsum."
+        "He died fighting in World War II. Lorem ipsum."
+        "He died fighting in World War\xA0II. Lorem ipsum."
+        "He died fighting in World War 2. Lorem ipsum."
+        "He died fighting in World War\xA02. Lorem ipsum."
+        "I invited Mrs. Bill Stagg of Boston. Lorem ipsum."
+        "The love the revalry of the sharks vs. the jets. Lorem ipsum."
+        "Seated are Gens. Grant and Sherman. Lorem ipsum."
+        "Under Charles I and Charles II. Lorem ipsum."
+        "He bought a Roman sculpture dating from about 125\xA0CE. Lorem ipsum."
+        "The American club New York City FC. Lorem ipsum."
+        "Photograph ca. 1847 hand-tinted. Lorem ipsum."
+        "Martin Ryckaert (bap. 1587 – 1631) was a Flemish painter. Lorem ipsum."
+        "Maya Lin's monument Washington, D.C.. Lorem ipsum."
+        "Somewhere in North Africa. Lorem ipsum."
+        "The Complex is dated to 1950 BC. Lorem ipsum."
+        "Dennis Schröder ... (NBA). Lorem ipsum."
+        "His name is Richard Genée. Lorem ipsum."
+        "Fatinitza is an opera by Richard Genée. Lorem ipsum."
+        "The JFK Library by I. M. Pei at dusk. Lorem ipsum."
+        "Azores juniper occurs at altitude up to 1,500 m. Lorem ipsum."
     }
 
-    # Known failures
-    # "The John F. Kennedy Presidential Library and Museum, designed by I. M. Pei, ..."
-    #     potd_2008_05_08_w.jpg  -- conflicts with "...World War I."
-    # potd_2023_10_31_w.jpg: "Lorem ... 1,500 m. Lorem ipsum"
-    # potd_2015_07_23_w.jpg: "Fatinitza is a full-length ... by ... Richard Genée. Based ..."
     set success True
-    foreach {datum expected} $tests {
+    foreach datum $tests {
         set actual [FirstSentence $datum]
+        regexp {(.*?)\sLorem ipsum.*} "$datum Lorem ipsum" _ expected
         if {$actual ne $expected} {
             puts stderr "Test failure"
             puts stderr "  datum   : '$datum'"
@@ -2432,7 +2519,7 @@ proc FindPotDDescription {potdname {reload False}} {
             close $fin
         } emsg]
         if {$n} {
-            Logger "Error reading $logname file: '$emsg'"
+            Logger "Error reading $logname file: '$emsg'" emsg
             return $desc
         }
     }
@@ -2817,6 +2904,12 @@ proc ::Magic::Dialog {} {
         -style $styling
     ::ttk::checkbutton $left.shadows -text "Color borders" -variable ST(color,shadows) \
         -command ::Magic::ColorShadows -style $styling
+    ::ttk::checkbutton $left.scale -text "Automatic resizing" -variable ST(alwaysResize,onoff) \
+        -style $styling
+    if {! [::Baseshape::_HasImageMagick]} {
+        $left.scale config -state disabled
+        set ST(alwaysResize,onoff) 0
+    }
     ::ttk::checkbutton $left.ini -text "Save settings" -variable ST(inifile,onoff) \
         -style $styling
 
@@ -2837,6 +2930,7 @@ proc ::Magic::Dialog {} {
     ::tooltip::tooltip $left.potdname "Copy PotD encoded name to clipboard"
     ::tooltip::tooltip $left.preview "Preview image while loading it"
     ::tooltip::tooltip $left.shadows "Toggle color or black & white tile shadows"
+    ::tooltip::tooltip $left.scale "Always resize images to fit using Image Magick"
     ::tooltip::tooltip $left.ini "Save game state between sessions"
     ::tooltip::tooltip $left.quit "Close dialog"
 
@@ -2859,6 +2953,7 @@ proc ::Magic::Dialog {} {
     grid $left.msg2 -sticky ew
     grid $left.preview -sticky ew -pady {.3i 0}
     grid $left.shadows -sticky ew
+    grid $left.scale -sticky ew
     grid $left.ini -sticky ew
     grid $left.quit -row 102 -pady .2i
     grid rowconfigure $left 100 -weight 1
@@ -3109,8 +3204,8 @@ proc Puzzle {} {
     # Toggles "puzzling" by obscuring 3 tiles
     global G S BB
 
-    set icon [expr {$BB(Puzzle) ? "::img_icon::eye_off" : "::img_icon::eye_on"}]
-    $BB(Puzzle,w) config -image $icon
+    set text [expr {$BB(Puzzle) ? "Expert On" : "Expert Off"}]
+    $BB(Puzzle,w) config -text $text
 
     if {$S(img) eq "TBD" || [IsSolved]} {
         set msg "Puzzling turned off"
@@ -3397,7 +3492,7 @@ proc LoadInifile {} {
         set fin [open $::S(inifile,file) r]
         set inidata [read $fin]
     } on error {emsg} {
-        Logger "Error reading $::S(inifile,file): $emsg"
+        Logger "Error reading $::S(inifile,file): $emsg" emsg
         return
     } finally {
         if {[info exists fin]} { close $fin }
@@ -3421,6 +3516,9 @@ proc LoadInifile {} {
         } else {
             Logger "bad inifile line: $line"
         }
+    }
+    if {! [::Baseshape::_HasImageMagick]} {
+        set ST(alwaysResize,onoff) 0
     }
     trace variable ST w SaveInifile
 }
@@ -3451,7 +3549,7 @@ proc SaveInifile {args} {
         puts $fout "themes $themes"
 
     } on error {emgs} {
-        Logger "Error writing $::S(inifile,file): $emsg"
+        Logger "Error writing $::S(inifile,file): $emsg" emsg
     } finally {
         if {[info exists fout]} { close $fout }
     }

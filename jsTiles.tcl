@@ -20,8 +20,10 @@ exit
 #
 # potd_2024_04_29_c.jpg
 # TODO
+#  bad size: potd_2019_07_24_w.jpg
 #  always resize option (based on image magick)
 #  resize with ImageMagick if Wikipedia size is incorrect?
+#  trim S(logger) size if too big???
 #  BUG: did tiles.png crop too big???
 #  BUG: potd_2007_01_14_c.gif errs with "too many colors"
 #     => opening next image caused an error
@@ -81,6 +83,7 @@ exit
 #  NO: detect "deleted image" image : potd_2010_04_30_w.png, potd_2007_01_11_w.jpg, potd_2012_03_13_w.png
 #  DONE: default to Ell, Ess, Hexagon, Octagon, Trapezoid
 #  FIXED: hitting solve still does Perfect
+#  DONE: tooltip updated for description
 #
 # HARDEST:
 #   potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
@@ -107,6 +110,7 @@ exit
 package require Tk
 package require Img
 package require fileutil
+package require textutil
 package require tooltip
 package require http
 package require tls
@@ -196,14 +200,12 @@ set FAVORITES {
     potd_2018_06_07_c.JPG "Museum Brandhorst, Munich."
     potd_2023_12_18_c.jpg "Indian peafowl (Pavo cristatus) in Ribeirão Preto, São Paulo, Brazil"
     potd_2008_08_26_w.jpg "Pigments for sale at a market stall in Goa, India."
-
     potd_2010_08_05_c.jpg "Fishermen from Lorenzkirch on the Elbe in front of Strehla, Saxony, Germany."
     potd_2013_11_12_c.jpg "Mergozzo at the Lago di Mergozzo, rowing boats, (motorboats forbidden)."
     potd_2013_12_29_w.jpg "Sign painting is the art of painting announcements or advertisements on buildings, billboards or signboards."
     potd_2017_02_22_w.jpg "A LufthansaAirbus A320-211 taking off at Stuttgart Airport, Germany."
     potd_2020_03_11_c.jpg "Weeping Golden Willow."
     potd_2023_04_07_c.jpg "Romanesque crucifixion group at Seckau Basilica, Styria, Austria"
-
     potd_2021_03_20_c.jpg "Kurdish family watching Nowruz celebration, Besaran village, Eastern Kurdistan."
     potd_2024_01_11_c.jpg "An ultrawide angle panoramic view along the inside of L'Umbracle, designed by renowned Spanish architect Santiago Calatrava, in the City of Arts and Sciences in Valencia, Spain."
     potd_2022_04_02_w.jpg "Sand is a granular material composed of finely divided rock and mineral particles."
@@ -225,7 +227,6 @@ set FAVORITES {
     potd_2011_12_30_w.jpg "Pure (99.97+%) iron chips, electrolytically refined, as well as a high purity 1\xA0cm3 iron cube for comparison."
     potd_2019_11_07_w.jpg "The Pool of Bethesda was a pool of water in the Muslim Quarter of Jerusalem, on the path of the Beth Zeta Valley."
     potd_2018_04_20_c.jpg "A tape head cleaner cassette made of clear hard plastic."
-
     potd_2023_05_29_w.jpg "Mount Everest is Earth's highest mountain above sea level, located in the Himalayas along the China–Nepal border."
     potd_2004_12_01_c.jpg "Pope John Paul II during General Audiency, 29 September 2004, St. Peter Sq., Vatican"
     potd_2004_12_24_c.jpg "Port wine"
@@ -242,7 +243,7 @@ set FAVORITES {
     potd_2007_08_09_c.jpg "The flying gurnard, Dactylopterus volitans, in the Mediterranean sea."
     potd_2007_12_06_c.jpg "A bouncing ball captured with a stroboscopic flash at 25 images per second."
     potd_2008_02_13_c.jpg "Terrace rice fields in Yunnan Province, China."
-    potd_2008_03_26_w.jpg "The School of Athens or 'Scuola di Atene' in Italian is one of the most famous paintings by the Italian Renaissance artist Raphael."
+    potd_2008_03_26_w.jpg "The School of Athens or \"Scuola di Atene\" in Italian is one of the most famous paintings by the Italian Renaissance artist Raphael."
     potd_2008_05_06_c.jpg "Map of the county of Flanders by 1609"
     potd_2008_05_29_w.png "A diagram of the human respiratory system, which consists of the airways, the lungs, and the respiratory muscles that mediate the movement of air into and out of the body."
     potd_2008_06_17_w.jpg "The 71st plate from German biologist Ernst Haeckel'sKunstformen der Natur, showing radiolarians of the order Stephoidea."
@@ -254,8 +255,8 @@ set FAVORITES {
     potd_2009_02_04_c.jpg "A photochrome print of the front of Neuschwanstein Castle, Bavaria, Germany taken as few as ten years after the completion of the castle's construction"
     potd_2009_02_08_c.jpg "Hygieia fountain in the city hall courtyard, Hamburg, Germany"
     potd_2009_03_07_c.png "Royal coat of arms of the United Kingdom"
-    potd_2009_04_27_w.jpg "An 1836 lithograph of Mexican women making tortillas, which are an unleavenedflatbread and have been a staple of Mesoamerican food for centuries, dating to approximately 10,000 BCE. The name 'tortilla' comes from the Spanish word 'torta', which means 'round cake'."
-    potd_2009_11_14_w.jpg "An African American man climbs the stairs to a theater's 'colored' entrance in Belzoni, Mississippi, in 1939."
+    potd_2009_04_27_w.jpg "An 1836 lithograph of Mexican women making tortillas, which are an unleavenedflatbread and have been a staple of Mesoamerican food for centuries, dating to approximately 10,000 BCE. The name \"tortilla\" comes from the Spanish word \"torta\", which means \"round cake\"."
+    potd_2009_11_14_w.jpg "An African American man climbs the stairs to a theater\"s 'colored\" entrance in Belzoni, Mississippi, in 1939."
     potd_2010_01_21_c.jpg "USS Bunker Hill hit by two Kamikazes in 30 seconds on 11 May 1945 off Kyushu."
     potd_2010_07_12_w.jpg "An M777 Light Towed Howitzer in service with the U.S. Army10th Mountain Division in support of Operation Enduring Freedom in Logar Province, Charkh District, Afghanistan."
     potd_2010_09_05_c.jpg "National Chiang Kai-shek Memorial Hall in Taipei (Republic of China)"
@@ -274,7 +275,7 @@ set FAVORITES {
     potd_2014_01_14_w.jpg "The Humble Oil Building in Houston, Texas, was completed by the Humble Oil and Refining Company in 1921."
     potd_2014_04_01_c.jpg "Eastern span of the San Francisco–Oakland Bay Bridge."
     potd_2014_07_24_c.jpg "Birdy at the SWR3 New Pop Festival in Baden-Baden 2013"
-    potd_2014_09_22_c.jpg "The Petite Ceinture railway line ('Little Belt railway') passing through the parc Montsouris, 14th arrondissement of Paris, France."
+    potd_2014_09_22_c.jpg "The Petite Ceinture railway line (\"Little Belt railway\") passing through the parc Montsouris, 14th arrondissement of Paris, France."
     potd_2014_12_15_w.jpg "An aerial view of Manhattan in 1873, with Battery Park in the foreground and the Brooklyn Bridge under construction at the right."
     potd_2014_12_30_w.jpg "The Half Dome is a granite dome in California's Yosemite National Park, whose summit at elevation 8,844\xA0ft (2,696\xA0m) is more than 4,700\xA0ft (1,400\xA0m)* above the floor of Yosemite Valley."
     potd_2015_02_07_w.jpg "The Old Town of Prague, Czech Republic, is a medieval settlement."
@@ -314,7 +315,6 @@ set FAVORITES {
     potd_2020_04_20_w.jpg "Duke Humfrey's Library is the oldest reading room in the Bodleian Library at the University of Oxford."
     potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
     potd_2020_11_04_c.jpg "Panorama road between Waltensburg / Vuorz and Breil/Brigels."
-    potd_2020_11_07_c.jpg "Heap of cans outside the South Korea Pavilion of Expo 2015."
     potd_2021_01_13_c.jpg "Dunes and shadows in Sossusvlei, Namibia."
     potd_2021_01_19_c.jpg "Interior of Santa Isabel Theater in the Brazilian city of Recife, capital of Pernambuco state."
     potd_2021_03_30_w.jpg "Vincent van Gogh (30\xA0March\xA01853\xA0– 29\xA0July\xA01890) was a Dutch Post-Impressionist painter and one of the most famous and influential figures in the history of Western art."
@@ -322,12 +322,13 @@ set FAVORITES {
     potd_2022_06_14_w.png "The checker shadow illusion is an optical illusion published in 1995 by Edward Adelson, an American professor of vision science at the Massachusetts Institute of Technology."
     potd_2022_07_13_c.jpg "The Oval Hall of the Saint Michael's Castle in Saint Petersburg, Russia"
     potd_2022_07_24_c.jpg "Guard at the Prague castle, Prague."
-    potd_2022_07_27_c.jpg "The Mircea (ship, 1938) moored at the embankment 'Quai d'Alger' during the event 'Escale à Sète 2022'."
+    potd_2022_07_27_c.jpg "The Mircea (ship, 1938) moored at the embankment \"Quai d'Alger\" during the event \"Escale à Sète 2022\"."
     potd_2022_09_19_w.jpg "Women took on many different roles during World War\xA0II, including as combatants or workers on the home front."
     potd_2023_02_27_c.jpg "Oranges – whole, halved and peeled segment"
     potd_2023_03_13_w.jpg "The Olympus OM-D E-M1 Mark III is the third iteration of the flagship camera in the series of OM-D mirrorless interchangeable-lens cameras produced by Olympus on the Micro Four-Thirds system."
     potd_2023_03_19_c.jpg "Royal pavilion in Phraya Nakhon Cave in Khao Sam Roi Yot National Park, Prachuap Khiri Khan province, Thailand"
     potd_2023_05_26_w.png "Thyroid hormones are hormones produced and released by the thyroid gland, namely triiodothyronine (T3) and thyroxine (T4)."
+    potd_2016_11_16_w.jpg "Bangles on display in Bangalore, India."
 }
 
 set text_font [concat [font actual TkDefaultFont] -size 15]
@@ -2022,7 +2023,7 @@ proc GetPotDImage {{service ""} {override ""}} {
         set end [clock microseconds]
     }
     set ms [expr {$end - $start}]
-    Logger "Downloading image took [PrettyTime $ms]"
+    Logger "Downloading image metadata took [PrettyTime $ms]"
 
     set status [dict get $meta status]
     set date [dict get $meta date]
@@ -2062,7 +2063,7 @@ proc GetPotDImage {{service ""} {override ""}} {
 
     set sizes [lmap a $all { return -level 0 "[lindex $a 0]x[lindex $a 1]" }]
     Logger "Sizes: $sizes"
-    Logger "Best fit: ${S(iwidth)}x${S(iheight)} (to fit into [join $fitness x])"
+    Logger "Best fit: [PrettySize $S(iwidth) $S(iheight)] (to fit into [join $fitness x])"
     set S(ratio) [expr {double(min($S(iwidth), $S(iheight))) / max($S(iwidth), $S(iheight))}]
     Logger "Ratio: $S(ratio)"
     Logger "Description: $potd_desc"
@@ -2072,15 +2073,17 @@ proc GetPotDImage {{service ""} {override ""}} {
     _Go $S(img) "$service Picture of the Day for $when" $short_desc $potd_desc
 }
 proc _DownloadBestSize {meta all fitness} {
-    # bug work around: potd_2024_02_16_c.jpg size 768x768 was actually 960x960 in size
     global S
 
     lassign $fitness maxWidth maxHeight
 
     set bestfit [dict get $meta bestfit]
 
+    # NB. reported size doesn't always match actual size
+    # e.g. potd_2024_02_16_c.jpg size 768x768 was actually 960x960 in size
     while {$bestfit >= 0} {
         lassign [lindex $all $bestfit] S(iwidth) S(iheight) url
+        Logger "bestfit: #$bestfit [PrettySize $S(iwidth) $S(iheight)]"
         dict set meta image_url $url
         regsub {\?.*} $url "" url
         set idata [::POTD::DownloadUrl $url] ; list
@@ -2093,7 +2096,8 @@ proc _DownloadBestSize {meta all fitness} {
         set iheight [image height $S(img)]
         if {$iwidth <= $maxWidth && $iheight <= $maxHeight} break
 
-        Logger "ERROR: image size claims to $S(iwidth)x$S(iheight) but is ${iwidth}x$iheight" emsg
+        Logger [string cat "ERROR: image size claims to [PrettySize $S(iwidth) $S(iheight)]" \
+                " but is [PrettySize ${iwidth} $iheight]"] emsg
         incr bestfit -1
     }
 }
@@ -2116,6 +2120,7 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
     set S(pretty,source) $source
     set S(pretty,desc) $pretty_desc
     set S(potd,desc) $potd_desc
+    ::tooltip::tooltip .bottom.desc [::textutil::adjust $S(potd,desc)]
 
     UpdateDescriptionDialog $S(pretty,source) $S(potd,desc)
     ::Magic::UpdateImage
@@ -2132,7 +2137,7 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
 
     if {$S(iwidth) < $S(min,width) || $S(iheight) < $S(min,height)} {
         .c config -width 800 -height 600
-        set msg "Picture is too small to scramble: ${S(iwidth)}x${S(iheight)}"
+        set msg "Picture is too small to scramble: [PrettySize $S(iwidth) $S(iheight)]"
         Logger $msg emsg
         ShowStatus "Error" $msg button=Again
         .bottom.desc config -wraplength 800
@@ -2141,7 +2146,7 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
     if {$S(ratio) < $S(min,ratio)} {
         .c config -width 800 -height 600
         set bad [expr {$S(iwidth) > $S(iheight) ? "short and wide" : "tall and narrow"}]
-        set msg "Picture is too $bad to scramble:\n${S(iwidth)}x${S(iheight)}"
+        set msg "Picture is too $bad to scramble:\n[PrettySize $S(iwidth) $S(iheight)]"
         Logger $msg emsg
         ShowStatus "Error" $msg button=Again
         .bottom.desc config -wraplength 800
@@ -2624,6 +2629,9 @@ proc PrettyTime {ms} {
     set seconds [expr {$ms / 1000.0 / 1000.0}]
     return [format "%.1f seconds" $seconds]
 }
+proc PrettySize {w h} {
+    return "[Comma $w]x[Comma $h]"
+}
 proc Comma {num} {
     while {[regsub {^([-+]?[0-9]+)([0-9][0-9][0-9])} $num {\1,\2} num]} {}
     return $num
@@ -2718,7 +2726,7 @@ proc ::Magic::RandomSwap {} {
         }
     }
     set whither [lpick $candidates]
-    Logger "Randomly moving tile $who to $whither"
+    Logger "Randomly moving tile $who to position $whither"
 
     Explode $who 0 {*}[.c bbox tile_$who]
     Explode $whither 0 {*}[.c bbox tile_$whither]
@@ -2759,7 +2767,7 @@ proc ::Magic::Solve {} {
     if {[IsSolved]} return
 
     TimerStart
-    if {! [::Magic::IsForced]} {
+    if {! [::Magic::IsForced] && "S" ni $STATS(playback)} {
         lappend STATS(playback) "S"
     }
     while {True} {

@@ -428,7 +428,7 @@ proc ::POTD::_Plural {cnt single {multi {}}} {
     if {$multi eq ""} { set multi "${single}s"}
     return "$cnt ${multi}"
 }
-proc ::POTD::_Logger msg {
+proc ::POTD::_Logger {msg} {
     # Logs message to screen or to custom logger
 
     variable USER_LOGGER

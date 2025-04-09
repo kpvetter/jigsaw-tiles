@@ -62,6 +62,8 @@ proc ::POTD::_ExtractResolutions {day_url {html {}}} {
     }
     set all [lsort -index 1 -integer $all]
     ::POTD::_Logger "Found [::POTD::_Plural [llength $all] size]"
+    set sizes [lmap x $all { lassign $x w h; return -level 0 "${w}x$h"}]
+    ::POTD::_Logger "$sizes"
     return $all
 }
 proc ::POTD::_lpick llist {
@@ -140,7 +142,9 @@ proc ::POTD::RandomImage {service fitness} {
         set bestfit [::POTD::_BestFit $resolutions $maxWidth $maxHeight]
     }
 
-    set meta [dict create date $date image_page_url $image_page_url desc $desc emsg ""  status $::POTD::SUCCESS_STATUS bestfit $bestfit service "Random $service"  redirect_url $redirect_url]
+    set meta [dict create date $date image_page_url $image_page_url desc $desc emsg ""  \
+                  status $::POTD::SUCCESS_STATUS bestfit $bestfit service "Random $service" \
+                  redirect_url $redirect_url]
 
     return [list $meta $resolutions]
 }
@@ -317,12 +321,16 @@ proc ::POTD::_BestFit {resolutions maxWidth maxHeight} {
     # resolutions: list [list width height url] [list width height url] ...]
 
     set best -1
+    set size ""
     foreach item $resolutions idx [::POTD::_range [llength $resolutions]] {
         lassign $item width height url
         if {$maxWidth > 0 && $width > $maxWidth} break
         if {$maxHeight > 0 && $height > $maxHeight} break
         set best $idx
+        set size "${width}x${height}"
     }
+    ::POTD::_Logger "finding bestfit for ${maxWidth}x$maxHeight: $best $size"
+
     return $best
 }
 proc ::POTD::_ExtractSingleResolution {dom host} {

@@ -2409,9 +2409,9 @@ proc FirstSentence {para} {
     regsub $re $para {\1@aa.} para
 
     # Abbreviations that prematurely end a sentence
-    foreach abbrev {Mrs vs Gens Gen Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec ca bap} {
+    foreach abbrev {Mrs vs Gens Gen Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec ca bap St} {
         # Turn "... Mrs. Jones" into "... Mrs@ Jones"
-        regsub "\\m($abbrev)\\." $para {\1@} para
+        regsub -all "\\m($abbrev)\\." $para {\1@} para
     }
 
     set re {(^.*?[[:alnum:]\)""]{2,}[.!?]"?"?)\s+\W*[A-Z0-9]}
@@ -2462,6 +2462,7 @@ proc FirstSentenceTest {} {
         "Fatinitza is an opera by Richard Genée. Lorem ipsum."
         "The JFK Library by I. M. Pei at dusk. Lorem ipsum."
         "Azores juniper occurs at altitude up to 1,500 m. Lorem ipsum."
+        "The Church of St. Augustine and St. John was founded around 1180. Lorem ipsum"
     }
 
     set success True

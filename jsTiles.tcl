@@ -15,21 +15,23 @@ exit
 # Remove calendar, description, logs???
 # Hardest puzzle list
 # check image magick nagging
-# remove jsTiles.log???
-# Out of lives dialog:
-#   - disable tile movement
-#   - better title
-#   - better looking buttons
+# jsTiles.log only in beta, expose to user???
+# check S(beta)
 # selecting color borders does not rescramble
 # About dialog: check, esp w/r/t Puzzling
 # Favorites: another column for visited
 # figure out download from github approach
 # birds
-# tessalation options not being saved
 # timer keeps going on "Too short to scramble"
+# quit preview early???
 # DONE: make toplevels transient on .???
 # DONE: trim S(logger) if too big
 # DONE: logging for "Solve" only put up single message
+# DONE: tessalation options not being saved
+# DONE Out of lives dialog:
+#   SKIP - disable tile movement
+#   DONE - better title
+#   DONE - better looking buttons
 #
 # BUGS:
 # Commons 2009/10/08 is a VERY slow loading. svg/png with lots of transparency
@@ -142,9 +144,9 @@ source [file join [file dirname $argv0] src/shadowborder.tcl]
 catch {namespace delete Baseshape}
 
 set S(title) "JigSaw Tiles"
-set S(version) "0.8"
+set S(version) "0.9"
 
-set S(beta) True
+set S(beta) False
 if {$::tcl_platform(user) eq "kvetter"} { set S(beta) True }
 
 set S(inifile,file) "jsTiles.ini"
@@ -1348,6 +1350,7 @@ proc ::Victory::Victory {} {
     global S STATS
 
     ::Victory::Stop
+    destroy .status
     set ::Victory::VICT(stop) 0
 
     incr STATS(total,Solved)
@@ -1860,7 +1863,7 @@ proc SwapTiles {MOTIF tag1 dest} {
         ::Victory::Victory
     }
     if {$puzzle_done && $::BB(Puzzle)} {
-        ShowStatus "Puzzling" "You ran out of lives!" button=Replay
+        ShowStatus "Export Mode" "You ran out of lives!" button=Replay
     }
 }
 proc IsSolved {} {
@@ -1993,11 +1996,16 @@ proc ShowStatus {title msg args} {
             set btext2 "Play On"
         }
         if {$btext ne ""} {
-            button $status.bframe.button -text "  $btext  " -command $bcmd -font $::bigger_font
-            grid $status.bframe.button -pady {.2i 0} -sticky ew
-            if {$btext2 ne ""} {
-                button $status.bframe.button2 -text "  $btext2  " -command $bcmd2 -font $::bigger_font
-                grid $status.bframe.button2
+            grid columnconfigure $status.bframe all -pad .5i
+            ::ttk::button $status.bframe.button -text "  $btext  " -command $bcmd
+            if {$btext2 eq ""} {
+                grid $status.bframe.button -pady {.2i 0} -sticky ew
+            } else {
+                ::ttk::button $status.bframe.button2 -text "  $btext2  " -command $bcmd2
+                grid $status.bframe.button $status.bframe.button2 -pady {.2i 0} -sticky ew
+                grid $status.bframe.button -padx {0 .25i}
+                grid $status.bframe.button2 -padx {.25i 0}
+
             }
         }
         place $status -in $inside -anchor c -relx .5 -rely .4
@@ -2166,6 +2174,7 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
     .c create rect -1000 -1000 10000 10000 -tag background -fill white
     set theme [PickTheme $theme]
     set S(theme) $theme
+    SaveInifile
     Logger "Theme: $theme"
 
     set S(img,original) $img
@@ -2700,7 +2709,7 @@ proc TallyUsage {who desc} {
 
     if {! $S(filesystem,writable)} return
 
-    if {$::tcl_platform(user) eq "kvetter" || $ST(tallyfile,onoff)} {
+    if {$S(beta) || $ST(tallyfile,onoff)} {
         set when [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S %A"]
         set fout [open $S(inifile,tally) "a"]
         puts $fout "$when\t$who\t$desc"

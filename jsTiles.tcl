@@ -22,7 +22,6 @@ exit
 # TODO
 #  bad size: potd_2019_07_24_w.jpg
 #  always resize option (based on image magick)
-#  resize with ImageMagick if Wikipedia size is incorrect?
 #  trim S(logger) size if too big???
 #  BUG: did tiles.png crop too big???
 #  BUG: potd_2007_01_14_c.gif errs with "too many colors"
@@ -84,6 +83,7 @@ exit
 #  DONE: default to Ell, Ess, Hexagon, Octagon, Trapezoid
 #  FIXED: hitting solve still does Perfect
 #  DONE: tooltip updated for description
+#  FIXED: maxHeight didn't account for shadow borders
 #
 # HARDEST:
 #   potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
@@ -519,11 +519,12 @@ proc ComputeBestSize {} {
         set window_title 30
         set bbar [winfo height .bbar]
         set bottom [winfo height .bottom]
+        set shadowBorder 50
 
         if {$bbar == 1 || $bottom == 1} {
             return
         }
-        set free [expr {$total - $bbar - $bottom - $menubar - $window_title}]
+        set free [expr {$total - $bbar - $bottom - $menubar - $window_title - $shadowBorder}]
         set ::S(maxHeight) $free
     }
 }

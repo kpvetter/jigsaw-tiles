@@ -228,7 +228,6 @@ proc ::Hexagon::_ComputeBestSideLength {target_rows target_cols} {
     set h [expr {$SQ(h) - 2 * $SQ(target,margin,top)}]
 
     # Assume we have exactly target_cols columns
-    global A
     unset -nocomplain A
     set A(cols,ncols) $target_cols
     set A(cols,bbox_width) [expr {$w / $A(cols,ncols)}]

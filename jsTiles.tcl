@@ -10,20 +10,40 @@ exit
 #
 # really slow on ess:
 #   potd_2009_10_08_c.png (now bad ratio to be viewed)
-#   saved locally as slow.png
-#   month: https://commons.wikimedia.org/wiki/Template:Potd/2009-10
-#   day: https://commons.wikimedia.org/wiki/File:Ornamental_Alphabet_-_16th_Century.svg
-#   image: https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Ornamental_Alphabet_-_16th_Century.svg/1280px-Ornamental_Alphabet_-_16th_Century.svg.png
 #
-#   potd_2005_07_15_c.png
-#   potd_2021_07_30_w.jpg
-#
-# potd_2024_04_29_c.jpg
 # TODO
+# Remove calendar, description, logs???
+# Hardest puzzle list
+# check image magick nagging
+# remove jsTiles.log???
+# Out of lives dialog:
+#   - disable tile movement
+#   - better title
+#   - better looking buttons
+# selecting color borders does not rescramble
+# About dialog: check, esp w/r/t Puzzling
+# Favorites: another column for visited
+# figure out download from github approach
+# birds
+# tessalation options not being saved
+# timer keeps going on "Too short to scramble"
+# DONE: make toplevels transient on .???
+# DONE: trim S(logger) if too big
+# DONE: logging for "Solve" only put up single message
+#
+# BUGS:
+# Commons 2009/10/08 is a VERY slow loading. svg/png with lots of transparency
+#   - potd_2009_10_08_c.png
+#   - need to adjust min ratio to view: set S(min,ratio) .48
+#   - saved locally as slow.png
+#   - month: https://commons.wikimedia.org/wiki/Template:Potd/2009-10
+#   - day: https://commons.wikimedia.org/wiki/File:Ornamental_Alphabet_-_16th_Century.svg
+#   - image: https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Ornamental_Alphabet_-_16th_Century.svg/1280px-Ornamental_Alphabet_-_16th_Century.svg.png
+#
+
 #  bad size: potd_2019_07_24_w.jpg
 #  always resize option (based on image magick)
 #  trim S(logger) size if too big???
-#  BUG: did tiles.png crop too big???
 #  BUG: potd_2007_01_14_c.gif errs with "too many colors"
 #     => opening next image caused an error
 #  hardest slot on favorites???: potd_2020_11_07_c.JPG
@@ -47,8 +67,6 @@ exit
 #     enter to select???
 #
 #     mark favorites active and/or viewed  \u2610 & \u2611 & \u2612
-#     play symbol: \u25b6
-#                  \u25b6\ufe0f is \u25b6 with "show as emoji" variation selector
 #     better click select -- button is not obvious
 #     fix banding
 #     fix horizontal scrolling: no scroll bar, growing columns should all be in last column
@@ -76,7 +94,6 @@ exit
 #  DONE: wiki_potd bug with commons extracting day_url
 #  DONE: pick random from favorites
 #  DONE: potd_2006_11_24_c.jpg and potd_2024_02_16_c.jpg reported size incorrect
-#        potd_2014_05_30_w.png
 #  DONE: tallymark for single/solve
 #  NO: potd_2005_05_30_c.jpg too small tiles: ratio .57 but small overall size 344x599
 #  NO: detect "deleted image" image : potd_2010_04_30_w.png, potd_2007_01_11_w.jpg, potd_2012_03_13_w.png
@@ -84,6 +101,7 @@ exit
 #  FIXED: hitting solve still does Perfect
 #  DONE: tooltip updated for description
 #  FIXED: maxHeight didn't account for shadow borders
+#  DONE: used Image Magick to resize oversized web images
 #
 # HARDEST:
 #   potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
@@ -163,8 +181,7 @@ set ST(preview,onoff) on
 set ST(difficulty,raw) -1
 set ST(inifile,onoff) off
 set ST(tallyfile,onoff) off   ;# Set true to keep a log of every potd image downloaded
-set ST(alwaysResize,onoff) 0
-
+set ST(alwaysResize,onoff) 1
 
 set STATS(pretty,time) "00:00"
 set STATS(time,start) 0
@@ -570,6 +587,7 @@ proc CreateLogsDialog {} {
     set body [DialogTemplate Logs $top "Execution Logs"]
     wm title $top "$S(title) Log"
     wm resizable [winfo toplevel $body] 1 1
+    wm transient $top .
 
     set S(logger) $body$top
 
@@ -1202,6 +1220,7 @@ proc AboutDialog {} {
     set body [DialogTemplate About $top "by Keith Vetter"]
     wm title $top "About $S(title)"
     wm resizable [winfo toplevel $body] 1 1
+    wm transient $top .
 
     text $body.t -wrap word -font $::text_font -borderwidth 3 -relief ridge -padx .1i
     grid $body.t -row 1 -sticky nsew
@@ -1295,6 +1314,16 @@ proc Logger {msg {tag ""}} {
         $S(logger) insert end "\u2022 ${when}\n"
     }
     $S(logger) see end
+
+    # Keep log from growing too big
+    set maxSize 100000
+    set keepSize 10000
+
+    set index [$S(logger) index end]
+    if {$index > $maxSize} {
+        set text "\[deleted\]\n[string repeat \u2501 30]\n"
+        $S(logger) replace 2.0 [expr {$index - $keepSize}] $text
+    }
     update
 }
 proc CleanUp {} {
@@ -2098,9 +2127,36 @@ proc _DownloadBestSize {meta all fitness} {
         if {$iwidth <= $maxWidth && $iheight <= $maxHeight} break
 
         Logger [string cat "ERROR: image size claims to [PrettySize $S(iwidth) $S(iheight)]" \
-                " but is [PrettySize ${iwidth} $iheight]"] emsg
+                    " but is [PrettySize ${iwidth} $iheight]"] emsg
+        if {$::ST(alwaysResize,onoff)} {
+            set S(img) [_ResizeWebImage $S(img) $S(itype) $maxWidth $maxHeight]
+            set iwidth [image width $S(img)]
+            set iheight [image height $S(img)]
+            Logger [string cat "New size with Image Magick: [PrettySize $iwidth $iheight]"]
+            break
+        }
+
         incr bestfit -1
     }
+}
+proc _ResizeWebImage {img itype maxWidth maxHeight} {
+    # Some web images are bigger than they claim, e.g. potd_2019_07_24_w.jpg
+    # This code scales them to best fit into the max size using ImageMagick
+    global S
+
+    set ifile [file join $S(tempdir) _resize_pre.$itype]
+    set ofile [file join $S(tempdir) _resize_post.$itype]
+    $img write $ifile -format $itype
+
+    set max_size "$S(maxWidth)x$S(maxHeight)"
+    Logger "Resizing web image with ImageMagick"
+    Logger "  exec convert /.../[file tail $ifile] -resize $max_size /.../[file tail $ofile]"
+    exec convert $ifile -resize $max_size $ofile
+    set img [image create photo -file $ofile]
+
+    file delete $ifile
+    file delete $ofile
+    return $img
 }
 proc _Go {img source pretty_desc potd_desc {theme ""}} {
     # Starts puzzle with given image
@@ -2186,6 +2242,7 @@ proc GetLocalPicture {{next False} {iname ""}} {
     global S
 
     ::Victory::Stop
+    destroy .status
 
     Logger ""
     if {$iname eq ""} {
@@ -2548,7 +2605,7 @@ proc Restart {{theme ""}} {
     ::Victory::Stop
 
     if {$S(pretty,source) eq ""} return
-    Logger "Restarting: $S(pretty,source)"
+    Logger "Rescrambling: $S(pretty,source)"
     _Go $S(img,original) $S(pretty,source) $S(pretty,desc) $S(potd,desc) $theme
 }
 proc PreviewImage {verb} {
@@ -2654,7 +2711,7 @@ proc DialogTemplate {who top subtitle} {
     # Generic toplevel dialog with standard icon, title and layout
     destroy $top
     toplevel $top
-    # wm transient $top .
+    wm transient $top .
     wm title $top $::S(title)
     wm protocol $top WM_DELETE_WINDOW [list DialogOnOff $who off]
     wm resizable $top 0 0
@@ -2772,6 +2829,7 @@ proc ::Magic::Solve {} {
     if {! [::Magic::IsForced] && "S" ni $STATS(playback)} {
         lappend STATS(playback) "S"
     }
+    Logger "Solving puzzle"
     while {True} {
         set unsolved {}
         foreach idx [range [llength [array names G *,isAt]]] {
@@ -2780,7 +2838,6 @@ proc ::Magic::Solve {} {
             }
         }
         set who [lindex $unsolved 0]
-        Logger "Solving tile $who"
         SwapTiles $S(MOTIF) tile_$who $who
         if {[IsSolved]} break
     }
@@ -2911,17 +2968,17 @@ proc ::Magic::Dialog {} {
     set styling Toolbutton
     set styling ""
     ::ttk::checkbutton $left.preview -text "Preview image" -variable ST(preview,onoff) \
-        -style $styling
+        -style $styling -command SaveInifile
     ::ttk::checkbutton $left.shadows -text "Color borders" -variable ST(color,shadows) \
-        -command ::Magic::ColorShadows -style $styling
+        -command ::Magic::ColorShadows -style $styling -command SaveInifile
     ::ttk::checkbutton $left.scale -text "Automatic resizing" -variable ST(alwaysResize,onoff) \
-        -style $styling
+        -style $styling -command SaveInifile
     if {! [::Baseshape::_HasImageMagick]} {
         $left.scale config -state disabled
         set ST(alwaysResize,onoff) 0
     }
     ::ttk::checkbutton $left.ini -text "Save settings" -variable ST(inifile,onoff) \
-        -style $styling
+        -style $styling -command SaveInifile
 
     ::ttk::button $left.quit -text "Close" -command ::Magic::CleanUp
     ::ttk::label $left.msg1 -textvariable S(magic,url1) -anchor c \
@@ -3019,6 +3076,7 @@ proc ::Magic::UpdateDifficultyDisplay {raw} {
     set S(difficulty,pretty) $text
 
     set level [expr {int(round($ST(difficulty,raw)))}]
+    SaveInifile
     ::Magic::InsertNewLevel $level
     Logger "Resizing to $S(difficulty,pretty) difficulty ($level)"
 }
@@ -3491,12 +3549,12 @@ proc CheckImageMagick {} {
 }
 proc LoadInifile {} {
     global S ST
-    if {! [file exists $::S(inifile,file)]} return
-    Logger "Reading inifile $::S(inifile,file)"
 
-    foreach tr [trace info variable ST] {
-        trace remove variable ST {*}$tr
+    if {! [file exists $::S(inifile,file)]} {
+        Logger "No inifile $::S(inifile,file), skipping"
+        return
     }
+    Logger "Reading inifile $::S(inifile,file)"
 
     try {
         set fin [open $::S(inifile,file) r]
@@ -3524,15 +3582,14 @@ proc LoadInifile {} {
         if {$n && [info exists ST($key)] && [string is $type -strict $value]} {
             set ST($key) $value
         } else {
-            Logger "bad inifile line: $line"
+            Logger "bad inifile line: $line" emsg
         }
     }
     if {! [::Baseshape::_HasImageMagick]} {
         set ST(alwaysResize,onoff) 0
     }
-    trace variable ST w SaveInifile
 }
-proc SaveInifile {args} {
+proc SaveInifile {} {
     global S ST
 
     if {! $ST(inifile,onoff)} return
@@ -3694,4 +3751,15 @@ proc CanvasColoredString {tag x y font tuples} {
 
 # set color red
 # ttk::style configure TFrame -background $color
+
+proc bird {} {
+    global S
+    puts "KPV: birding $S(potd,current)"
+    set fname jsBirds.txt
+    if {! [file exists $fname]} return
+    set fout [open $fname a]
+    puts $fout $S(potd,current)
+    close $fout
+}
+bind all <Control-b> bird
 main

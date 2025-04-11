@@ -280,7 +280,12 @@ proc ::POTD::_GetPOTD {service year month day {fitness {}}} {
     ::POTD::_Logger "Getting $service Picture of the Day for $date"
 
     if {$service eq "Commons"} {
-        set month_url [format "%s/%d-%02d#%d" $::POTD::COMMONS_URL $year $month $day]
+        # Before 2011-07, the day id must be two digits long
+        if {$year < 2011 || ($year == 2011 && $month < 7)} {
+            set month_url [format "%s/%d-%02d#%02d" $::POTD::COMMONS_URL $year $month $day]
+        } else {
+            set month_url [format "%s/%d-%02d#%d" $::POTD::COMMONS_URL $year $month $day]
+        }
     } else {
         set month_name [clock format [clock scan "2000-$month-24" -format %Y-%m-%d] -format %B]
         set month_url "${::POTD::PEDIA_URL}/${month_name}_$year#$day"
@@ -290,7 +295,8 @@ proc ::POTD::_GetPOTD {service year month day {fitness {}}} {
 
     if {[file tail $day_url] eq "File:No_image.svg"} {
         set desc "No image available for $date"
-        set meta [dict create date $date month_url $month_url day_url $day_url desc $desc  status $::POTD::NO_PICTURE_STATUS bestfit -1 service $service emsg ""]
+        set meta [dict create date $date month_url $month_url day_url $day_url desc $desc \
+                      status $::POTD::NO_PICTURE_STATUS bestfit -1 service $service emsg ""]
         return [list $meta {}]
     }
 
@@ -302,7 +308,8 @@ proc ::POTD::_GetPOTD {service year month day {fitness {}}} {
         set bestfit [::POTD::_BestFit $resolutions $maxWidth $maxHeight]
     }
 
-    set meta [dict create date $date month_url $month_url day_url $day_url desc $desc  status $::POTD::SUCCESS_STATUS bestfit $bestfit service $service emsg ""]
+    set meta [dict create date $date month_url $month_url day_url $day_url desc $desc \
+                  status $::POTD::SUCCESS_STATUS bestfit $bestfit service $service emsg ""]
     return [list $meta $resolutions]
 }
 proc ::POTD::_RemoveInvisibleText node {
@@ -465,7 +472,9 @@ proc ::POTD::GetPOTD {service year month day {fitness {}}} {
 
     if {$n} {
         set date $year/$month/$day
-        set meta [dict create status $::POTD::ERROR_STATUS service $service  date $date emsg $emsg month_url $month_url day_url $day_url  desc "" bestfit -1]
+        set meta [dict create status $::POTD::ERROR_STATUS service $service \
+                      date $date emsg $emsg month_url $month_url day_url $day_url  \
+                      desc "" bestfit -1]
         return [list $meta {}]
     }
     return $results

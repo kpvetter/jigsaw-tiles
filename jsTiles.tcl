@@ -174,6 +174,7 @@ set S(MOTIF) ""
 set S(maxWidth) [expr {int([winfo screenwidth .] * .75)}]
 set S(maxHeight) [expr {int([winfo screenheight .] * .8)}] ;# Get recalculated better below
 set S(filesystem,writable) [file writable .]
+set S(inside,zip) [expr {[info exists S(inside,zip)] ? $S(inside,zip) : 0}]
 
 set meta [dict create]
 
@@ -3600,6 +3601,8 @@ proc CheckImageMagick {} {
     global S
 
     if {[::Baseshape::_HasImageMagick]} return
+    if {! $S(filesystem,writable)} return
+    if {$S(inside,zip)} return
     set url "https://imagemagick.org/script/download.php"
 
     set msg "INFO: Could not locate a copy of ImageMagick."

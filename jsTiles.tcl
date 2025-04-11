@@ -31,6 +31,7 @@ exit
 #   DONE - better looking buttons
 # DONE: Favorites: another column for visited
 # DONE: Favorites dialog blocks preview
+# DONE: LaunchBrowser
 #
 # BUGS:
 # Commons 2009/10/08 is a VERY slow loading. svg/png with lots of transparency
@@ -532,11 +533,12 @@ proc ComputeBestSize {} {
         set bbar [winfo height .bbar]
         set bottom [winfo height .bottom]
         set shadowBorder 50
+        set slop 20
 
         if {$bbar == 1 || $bottom == 1} {
             return
         }
-        set free [expr {$total - $bbar - $bottom - $menubar - $window_title - $shadowBorder}]
+        set free [expr {$total - $bbar - $bottom - $menubar - $window_title - $shadowBorder - $slop}]
         set ::S(maxHeight) $free
     }
 }
@@ -2083,7 +2085,7 @@ proc GetPotDImage {{service ""} {override ""}} {
         return
     }
 
-    _DownloadBestSize $meta $all $fitness
+    _DownloadBestSize $all $fitness
 
     set S(local,current) ""
     set S(potd,current) [EncodePotDFilename $service $date $S(img,url)]
@@ -2105,8 +2107,8 @@ proc GetPotDImage {{service ""} {override ""}} {
     TallyUsage $S(potd,current) $short_desc
     _Go $S(img) "$service Picture of the Day for $when" $short_desc $potd_desc
 }
-proc _DownloadBestSize {meta all fitness} {
-    global S
+proc _DownloadBestSize {all fitness} {
+    global S meta
 
     lassign $fitness maxWidth maxHeight
 
@@ -3043,6 +3045,7 @@ proc ::Magic::URL {which} {
     clipboard clear
 
     set key "${which}_url"
+    set url ""
     if {[dict exists $meta $key]} {
         set url [dict get $meta $key]
         clipboard append $url
@@ -3069,6 +3072,9 @@ proc ::Magic::URL {which} {
         }
     }
     after 3000 {set ::S(magic,url1) [set ::S(magic,url2) ""]}
+    if {$url ne "" && $S(potd,current) ne ""} {
+        catch {LaunchBrowser $url}
+    }
 }
 proc ::Magic::UpdateDifficultyDisplay {raw} {
     # Updates difficutly scale text on the magic dialog
@@ -3742,11 +3748,14 @@ proc ::Stars::_XY {x y delta} {
     return $coords
 }
 proc bird {} {
-    # Too many Wikipedia PotD of birds
+    # Too many damn birds on Wikipedia PotD
     global S
-    puts "KPV: birding $S(potd,current)"
     set fname jsBirds.txt
-    if {! [file exists $fname]} return
+    if {! [file exists $fname]} {
+        puts "KPV: birding $S(potd,current)"
+        return
+    }
+    puts "KPV: saving birding $S(potd,current)"
     set fout [open $fname a]
     puts $fout $S(potd,current)
     close $fout
@@ -3787,6 +3796,27 @@ proc CanvasColoredString {tag x y font tuples} {
         incr x [font measure $font $text]
     }
 }
+proc LaunchBrowser {url} {
+    global tcl_platform
+
+    if {$tcl_platform(platform) eq "windows"} {
+        # first argument to "start" is "window title", which is not used here
+        set command [list {*}[auto_execok start] {}]
+        # (older) Windows shell would start a new command after &, so shell escape it with ^
+        # set url [string map {& ^&} $url]
+        # but 7+ don't seem to (?) so this nonsense is gone
+        if {[file isdirectory $url]} {
+            # if there is an executable named eg ${url}.exe, avoid opening that instead:
+            set url [file nativename [file join $url .]]
+        }
+    } elseif {$tcl_platform(os) eq "Darwin"} {
+        set command [list open]
+    } else {
+        set command [list xdg-open]
+    }
+    exec {*}$command $url &
+}
+
 ################################################################
 ################################################################
 

@@ -11,10 +11,8 @@ exit
 #
 # TODO
 # Remove calendar, description, logs???
-# check ImageMagick nagging
 # jsTiles.log only in beta, expose to user???
 # check S(beta)
-# selecting color borders does not rescramble
 # birds
 # Timer: pause while "You ran out of lives!" dialog is up
 # quit preview early???
@@ -33,6 +31,8 @@ exit
 # DONE: LaunchBrowser
 # DONE: check About
 # DONE: figure out download from github approach
+# DONE: check ImageMagick nagging
+# DONE: selecting color borders does not rescramble
 #
 # BUGS:
 # Commons 2009/10/08 is a VERY slow loading. svg/png with lots of transparency
@@ -178,12 +178,13 @@ set S(inside,zip) [expr {[info exists S(inside,zip)] ? $S(inside,zip) : 0}]
 
 set meta [dict create]
 
-set ST(color,shadows) 0
-set ST(preview,onoff) on
-set ST(difficulty,raw) -1
-set ST(inifile,onoff) off
-set ST(tallyfile,onoff) off   ;# Set true to keep a log of every potd image downloaded
 set ST(alwaysResize,onoff) 1
+set ST(color,shadows) 0
+set ST(difficulty,raw) 0
+set ST(inifile,onoff) 1
+set ST(preview,onoff) 1
+set ST(tallyfile,onoff) off   ;# Set true to keep a log of every potd image downloaded
+set ST(last) ""
 
 set STATS(pretty,time) "00:00"
 set STATS(time,start) 0
@@ -1292,9 +1293,10 @@ proc AboutDialog {} {
     }
 
     $body.t insert end "\n"
-    $body.t insert end "Expert Mode" heading1 "\n"
-    $body.t insert end "The Expert button obscures three random tiles by blurring them. "
-    $body.t insert end "The blurred tiles behave as normal tiles, and when they're "
+    $body.t insert end "Expert Puzzle Mode" heading1 "\n"
+    $body.t insert end "The Expert button turns this into a harder puzzle. It choses "
+    $body.t insert end "three random tiles and pixilates them obscuring their content. "
+    $body.t insert end "These pixilated tiles behave as normal tiles, and when they're "
     $body.t insert end "placed in their proper location, they will reveal themselves.\n\n"
 
     $body.t insert end "Magic" heading1 "\n"
@@ -1308,6 +1310,25 @@ proc AboutDialog {} {
     $body.t insert end "Other Magic features let you tweak some of the GUI parameters, "
     $body.t insert end "such as, replacing black & white tile shading with "
     $body.t insert end "more colorful ones.\n"
+
+    set symbol_g \u2611
+    set symbol_b \u2612
+    set symbol_2 \u2731
+    set symbol_S \u22ee
+    set symbol_done "\u2764\ufe0f"
+
+    $body.t insert end "\n"
+    $body.t insert end "Tallymarks" heading1 "\n"
+    $body.t insert end "As you place tiles, a progress bar will be displayed "
+    $body.t insert end "on the top left of the image showing your progress. Key:\n"
+    $body.t insert end "\u2022 $symbol_g\tcorrectly placed tile\n" tabby
+    $body.t insert end "\u2022 $symbol_2\tboth tiles placed correctly\n" tabby
+    $body.t insert end "\u2022 $symbol_b\tincorrectly placed tile\n" tabby
+    $body.t insert end "\u2022 $symbol_S\thint given\n" tabby
+    $body.t insert end "\u2022 $symbol_done\tpuzzle finished\n" tabby
+
+    set tabs [font measure [$body.t cget -font] "\u2022 $symbol_done "]
+    $body.t tag config tabby -tabs $tabs
 
     $body.t insert end "\n"
     $body.t insert end "Shortcuts" heading1 "\n"
@@ -2606,33 +2627,25 @@ proc SavePotDFast {} {
     Logger "Saving $S(potd,current) to $S(local,cwd)"
 }
 
-proc FindPotDDescription {potdname {reload False}} {
+proc FindPotDDescription {potdname} {
     # Tries to locate cached description for a given canonical potdname
     global S
 
     set desc ""
-    if {$reload || ! [info exists S(cached,tally)]} {
-        set logname $S(inifile,tally)
-        set n [catch {
-            set fin [open $logname r]
-            set S(cached,tally) [read $fin]
-            close $fin
-        } emsg]
-        if {$n} {
-            Logger "Error reading $logname file: '$emsg'" emsg
-            return $desc
-        }
-    }
     set tail [file tail $potdname]
-
-    set fname [string map {"." "\\." "*" "\\*" "?" "\\?"} $tail]
-    set re "$fname.*\t(.*)$"
-    set desc ""
-    set n [regexp -line -nocase $re $S(cached,tally) _ desc]
-    if {$n == 0 && ! $reload} {
-        return [FindPotDDescription $potdname True]
+    if {[file readable $S(inifile,tally)]} {
+        set data ""
+        set n [catch {
+            set fin [open $S(inifile,tally) r]
+            set data [read $fin] ; list
+            close $fin
+        }]
+        set fname [string map {"." "\\." "*" "\\*" "?" "\\?"} $tail]
+        set re "$fname.*\t(.*)$"
+        set n [regexp -line -nocase $re $data _ desc]
+        if {$n} { return $desc }
     }
-    return $desc
+    return ""
 }
 proc Restart {{theme ""}} {
     # Restarts current image with new theme
@@ -3006,7 +3019,7 @@ proc ::Magic::Dialog {} {
     ::ttk::checkbutton $left.preview -text "Preview image" -variable ST(preview,onoff) \
         -style $styling -command SaveInifile
     ::ttk::checkbutton $left.shadows -text "Color borders" -variable ST(color,shadows) \
-        -command ::Magic::ColorShadows -style $styling -command SaveInifile
+        -command ::Magic::ColorShadows -style $styling -command ::Magic::ColorShadows
     ::ttk::checkbutton $left.scale -text "Automatic resizing" -variable ST(alwaysResize,onoff) \
         -style $styling -command SaveInifile
     if {! [::Baseshape::_HasImageMagick]} {
@@ -3141,16 +3154,14 @@ proc ::Magic::ChangeSize {} {
 proc ::Magic::ColorShadows {} {
     # Toggles between black & white borders and color borders
     global S ST
+    SaveInifile
+
     set shadows [list white gray25]
     if {$ST(color,shadows)} {
         set shadows [list magenta springgreen2]
     }
     Logger "Setting shadows to $shadows"
     lassign $shadows ::Baseshape::base_SQ(color,shade1) ::Baseshape::base_SQ(color,shade2)
-
-    if {$S(img) eq "TBD"} return
-    set theme $S(theme)
-    Restart $theme
 }
 namespace eval ::Animate {
     variable ANIM
@@ -3607,6 +3618,7 @@ proc CheckImageMagick {} {
 
     set msg "INFO: Could not locate a copy of ImageMagick."
     set details "$S(title) will work fine without ImageMagick but with it "
+    append details "will be faster and "
     append details "[llength $S(themes.cannot)] more tiling shapes are "
     append details "available: [join $S(themes.cannot) {, }].\n\n"
     append details "You can download ImageMagick from $url"
@@ -3661,26 +3673,32 @@ proc SaveInifile {} {
     if {! $ST(inifile,onoff)} return
     if {! $S(filesystem,writable)} return
 
+    set data "# Ini file for $S(title)\n"
+    foreach key [lsort -nocase [array names ST]] {
+        if {$key eq "last"} continue
+        set value $ST($key)
+        if {$key eq "difficulty,raw"} {
+            set value [expr {int(round($value))}]
+        }
+        append data "$key $value\n"
+    }
+    scan [wm geom .] %dx%d+%d+%d _ _ x y
+    append data "geometry $x $y\n"
+
+    set themes [lsort [lmap {k v} [array get S themes,*] {
+        if {! $v} continue ; return -level 0 [string range $k 7 end]
+    }]]
+    append data "themes $themes"
+    if {$data eq $ST(last)} {
+        Logger "Skipping saving inifile, no changes $::S(inifile,file)"
+        return
+    }
     Logger "Saving inifile $::S(inifile,file)"
 
     try {
         set fout [open $::S(inifile,file) w]
-        puts $fout "# Ini file for $S(title)"
-        foreach key [lsort -nocase [array names ST]] {
-            set value $ST($key)
-            if {$key eq "difficulty,raw"} {
-                set value [expr {int(round($value))}]
-            }
-            puts $fout "$key $value"
-        }
-        scan [wm geom .] %dx%d+%d+%d _ _ x y
-        puts $fout "geometry $x $y"
-
-        set themes [lsort [lmap {k v} [array get S themes,*] {
-            if {! $v} continue ; return -level 0 [string range $k 7 end]
-        }]]
-        puts $fout "themes $themes"
-
+        set ST(last) $data
+        puts $fout $data
     } on error {emgs} {
         Logger "Error writing $::S(inifile,file): $emsg" emsg
     } finally {

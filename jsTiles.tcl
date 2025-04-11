@@ -5,25 +5,22 @@ exit
 
 ##+##########################################################################
 #
-# jigsaw.tcl -- <description>
+# jigsaw_tiles.tcl -- Game in which a player must restore an image that's
+# been tiled and shuffled.
 # by Keith Vetter 2023-07-30
-#
-# really slow on ess:
-#   potd_2009_10_08_c.png (now bad ratio to be viewed)
 #
 # TODO
 # Remove calendar, description, logs???
-# Hardest puzzle list
 # check image magick nagging
 # jsTiles.log only in beta, expose to user???
 # check S(beta)
 # selecting color borders does not rescramble
 # About dialog: check, esp w/r/t Puzzling
-# Favorites: another column for visited
 # figure out download from github approach
 # birds
-# timer keeps going on "Too short to scramble"
+# Timer: pause while "You ran out of lives!" dialog is up
 # quit preview early???
+#
 # DONE: make toplevels transient on .???
 # DONE: trim S(logger) if too big
 # DONE: logging for "Solve" only put up single message
@@ -32,6 +29,8 @@ exit
 #   SKIP - disable tile movement
 #   DONE - better title
 #   DONE - better looking buttons
+# DONE: Favorites: another column for visited
+# DONE: Favorites dialog blocks preview
 #
 # BUGS:
 # Commons 2009/10/08 is a VERY slow loading. svg/png with lots of transparency
@@ -48,7 +47,6 @@ exit
 #  trim S(logger) size if too big???
 #  BUG: potd_2007_01_14_c.gif errs with "too many colors"
 #     => opening next image caused an error
-#  hardest slot on favorites???: potd_2020_11_07_c.JPG
 #  change Expert/hidden icon
 #  too small image: potd_2004_11_09_c.jpg (350x263)
 #  bypass too short/wide check
@@ -105,9 +103,6 @@ exit
 #  FIXED: maxHeight didn't account for shadow borders
 #  DONE: used Image Magick to resize oversized web images
 #
-# HARDEST:
-#   potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
-#   potd_2020_11_07_c.jpg "Heap of cans outside the South Korea Pavilion of Expo 2015."
 #
 # Other image sources:
 #  download random Wikimedia Commons images:
@@ -197,67 +192,23 @@ set STATS(total,Local) 0
 set STATS(total,Solved) 0
 
 set FAVORITES {
-    potd_2007_04_03_w.jpg "A photo of strabismus surgery, surgery on the extraocular muscles to correct misalignment of the eyes, being performed."
-    potd_2007_10_06_w.jpg "Maslenitsa, a 1919 painting depicting the carnival of the same name, which takes place the last week before Great Lent."
-    potd_2009_06_18_w.jpg "In the history of cartography, this chart of Pedro Reinel (c. 1504) is one of the oldest known nautical charts with a scale of latitudes and constructed on the basis of astronomical observations."
-    potd_2010_02_21_c.jpg "Sphaerophoria scripta on a Hawkweed flower (Hieracium sp.)"
-    potd_2012_06_12_c.jpg "The audience seen from the rear of the stage at the former Metropolitan Opera House in New York City at a concert by classical pianist Josef Hofmann on November 28, 1937."
-    potd_2012_08_18_w.jpg "Six beryllium mirror segments of the James Webb Space Telescope (JWST) undergoing a series of cryogenic tests at NASA's Marshall Space Flight Center in Huntsville, Alabama."
-    potd_2013_03_15_w.jpg "Robin Hunicke (b. 1973) is an American video game designer and producer who worked for several companies before establishing her own, Funomena, in 2011."
-    potd_2017_04_03_c.jpg "Crypt of the Cádiz Cathedral, Cádiz, Andalusia, Spain."
-    potd_2018_07_19_w.jpg "The Indian Head eagle was a ten-dollar gold piece, or eagle, struck by the United States Mint from 1907 until 1933."
-    potd_2020_08_21_w.png "This is an animation showing geocentric satellite orbits, to scale with the Earth, at 3,600 times actual speed."
-    potd_2020_06_26_w.jpg "San Lorenzo, also known as the Royal Church of Saint Lawrence, is a Baroque-style church in Turin, Italy."
-    potd_2018_05_15_c.jpg "Rumyantsevo metro station in Moscow, Russia."
-    potd_2021_02_03_c.jpg "Dichroic prismWikipedia: Dichroic prism"
-    potd_2005_07_15_c.jpg "A spiral staircase inside one of the Vatican Museums"
-    potd_2011_02_18_w.jpg "An elaborate sand sculpture display at the Sand Sculpting Australia \"Dinostory\" festival."
-    potd_2007_04_17_w.jpg "The Tower Bridge, a bascule bridge that crosses the River Thames in London, England, at twilight."
-    potd_2018_03_03_c.jpg "Entrance to building on Sonnenstraße 15, Munich."
-    potd_2008_07_08_c.png "Rubik's cube."
-    potd_2006_11_24_c.jpg "Memorial to the Murdered Jews of Europe in Berlin, Germany"
-    potd_2018_06_07_c.JPG "Museum Brandhorst, Munich."
-    potd_2023_12_18_c.jpg "Indian peafowl (Pavo cristatus) in Ribeirão Preto, São Paulo, Brazil"
-    potd_2008_08_26_w.jpg "Pigments for sale at a market stall in Goa, India."
-    potd_2010_08_05_c.jpg "Fishermen from Lorenzkirch on the Elbe in front of Strehla, Saxony, Germany."
-    potd_2013_11_12_c.jpg "Mergozzo at the Lago di Mergozzo, rowing boats, (motorboats forbidden)."
-    potd_2013_12_29_w.jpg "Sign painting is the art of painting announcements or advertisements on buildings, billboards or signboards."
-    potd_2017_02_22_w.jpg "A LufthansaAirbus A320-211 taking off at Stuttgart Airport, Germany."
-    potd_2020_03_11_c.jpg "Weeping Golden Willow."
-    potd_2023_04_07_c.jpg "Romanesque crucifixion group at Seckau Basilica, Styria, Austria"
-    potd_2021_03_20_c.jpg "Kurdish family watching Nowruz celebration, Besaran village, Eastern Kurdistan."
-    potd_2024_01_11_c.jpg "An ultrawide angle panoramic view along the inside of L'Umbracle, designed by renowned Spanish architect Santiago Calatrava, in the City of Arts and Sciences in Valencia, Spain."
-    potd_2022_04_02_w.jpg "Sand is a granular material composed of finely divided rock and mineral particles."
-    potd_2007_04_21_c.jpg "Light refraction through glass"
-    potd_2013_08_28_w.jpg "The ladder snake (Rhinechis scalaris) is found mostly in peninsular Spain, Portugal, and southern France."
-    potd_2013_01_16_w.jpg "Nasser Al-Attiyah, a Qatari rally driver, in a Ford Fiesta S2000 at the 2010 Rally Finland."
-    potd_2007_07_12_c.jpg "The memorial to the Synagogue in Göttingen (Germany), burnt down 1938 during the Kristallnacht, at the Platz der Synagoge (Synagogue Square) as seen from the inside looking straight up."
-    potd_2016_07_12_w.png "Halftone is the reprographic technique that simulates continuous tone imagery through the use of dots, varying either in size or in spacing, thus generating a gradient-like effect."
-    potd_2018_12_27_w.jpg "Hayley Williams (born December 27, 1988) is an American singer, songwriter, musician, and businesswoman."
-    potd_2013_07_04_w.jpg "Official portrait of the 1899 Michigan Wolverines football team, an American football team which represented the University of Michigan in the 1899 season."
-    potd_2021_07_30_w.jpg "Nebotičnik is a high-rise building located in the centre of Ljubljana, Slovenia."
-    potd_2024_06_06_c.jpg "Chkalovskaya metro station in Yekaterinburg, Russia."
-    potd_2020_11_07_c.jpg "Heap of cans outside the South Korea Pavilion of Expo 2015."
-    potd_2006_04_24_c.jpg "The wreck of the American Star (SS America) seen from land side."
-    potd_2022_05_19_w.jpg "The Supermarine Spitfire is a British single-seat fighter aircraft that was used by the Royal Air Force and other Allied countries before, during, and after World War II."
-    potd_2015_08_30_w.jpg "Nighthawks is an oil painting on canvas completed by the American artist Edward Hopper in 1942."
-    potd_2018_07_08_c.jpg "Ceiling of the Historical Court Bower, Lübeck, Schleswig-Holstein, Germany"
-    potd_2023_08_08_c.jpg "Interior of the main hall of the Museum of the History of Polish Jews in Warsaw, Poland."
-    potd_2011_12_30_w.jpg "Pure (99.97+%) iron chips, electrolytically refined, as well as a high purity 1\xA0cm3 iron cube for comparison."
-    potd_2019_11_07_w.jpg "The Pool of Bethesda was a pool of water in the Muslim Quarter of Jerusalem, on the path of the Beth Zeta Valley."
-    potd_2018_04_20_c.jpg "A tape head cleaner cassette made of clear hard plastic."
-    potd_2023_05_29_w.jpg "Mount Everest is Earth's highest mountain above sea level, located in the Himalayas along the China–Nepal border."
     potd_2004_12_01_c.jpg "Pope John Paul II during General Audiency, 29 September 2004, St. Peter Sq., Vatican"
     potd_2004_12_24_c.jpg "Port wine"
     potd_2005_02_27_c.jpg "Castel Sant' Angelo, Rome"
-    potd_2005_04_11_c.jpg "Sunset in Frankfurt am Main"
+    potd_2005_07_15_c.jpg "A spiral staircase inside one of the Vatican Museums"
     potd_2005_09_20_c.jpg "Astronaut Stephen K. Robinson anchored to a foot restraint on the International Space Station’s Canadarm2"
     potd_2006_04_05_c.png "Voivodships of the Polish-Lithuanian Commonwealth."
+    potd_2006_04_24_c.jpg "The wreck of the American Star (SS America) seen from land side."
     potd_2006_05_22_c.png "Exploded view of a personal computer."
+    potd_2006_11_24_c.jpg "Memorial to the Murdered Jews of Europe in Berlin, Germany"
     potd_2007_01_28_c.jpg "The McCormick Tribune Campus Center at the Illinois Institute of Technology, Chicago, Illinois"
+    potd_2007_04_03_w.jpg "A photo of strabismus surgery, surgery on the extraocular muscles to correct misalignment of the eyes, being performed."
+    potd_2007_04_17_w.jpg "The Tower Bridge, a bascule bridge that crosses the River Thames in London, England, at twilight."
+    potd_2007_04_21_c.jpg "Light refraction through glass"
     potd_2007_04_21_w.jpg "Cartographic relief depiction showing the varying age of bedrock underlying North America."
     potd_2007_06_20_c.png "A diagram of the human eye."
     potd_2007_07_01_w.png "An animated image showing the territorial evolution of Canada, that is, the dates when each province and territory were created."
+    potd_2007_07_12_c.jpg "The memorial to the Synagogue in Göttingen (Germany), burnt down 1938 during the Kristallnacht, at the Platz der Synagoge (Synagogue Square) as seen from the inside looking straight up."
     potd_2007_07_18_c.jpg "Concretepaver blocks"
     potd_2007_08_09_c.jpg "The flying gurnard, Dactylopterus volitans, in the Mediterranean sea."
     potd_2007_12_06_c.jpg "A bouncing ball captured with a stroboscopic flash at 25 images per second."
@@ -267,7 +218,9 @@ set FAVORITES {
     potd_2008_05_29_w.png "A diagram of the human respiratory system, which consists of the airways, the lungs, and the respiratory muscles that mediate the movement of air into and out of the body."
     potd_2008_06_17_w.jpg "The 71st plate from German biologist Ernst Haeckel'sKunstformen der Natur, showing radiolarians of the order Stephoidea."
     potd_2008_06_28_c.jpg "A fire in Massueville, Quebec, Canada."
+    potd_2008_07_08_c.png "Rubik's cube."
     potd_2008_08_12_c.jpg "Singer Veli Antti Hyyrynen of the Finnish thrash metal band Stam1na live at Nosturi, Helsinki"
+    potd_2008_08_26_w.jpg "Pigments for sale at a market stall in Goa, India."
     potd_2008_12_23_w.jpg "An 1885 lithograph of a bird's-eye view of the city of Phoenix, Arizona, the fifth-most-populous city in the United States."
     potd_2009_01_23_c.jpg "Kinderdijk windmills, Netherlands."
     potd_2009_02_01_c.png "Iowa class battleship main battery turret."
@@ -275,22 +228,35 @@ set FAVORITES {
     potd_2009_02_08_c.jpg "Hygieia fountain in the city hall courtyard, Hamburg, Germany"
     potd_2009_03_07_c.png "Royal coat of arms of the United Kingdom"
     potd_2009_04_27_w.jpg "An 1836 lithograph of Mexican women making tortillas, which are an unleavenedflatbread and have been a staple of Mesoamerican food for centuries, dating to approximately 10,000 BCE. The name \"tortilla\" comes from the Spanish word \"torta\", which means \"round cake\"."
+    potd_2009_06_18_w.jpg "In the history of cartography, this chart of Pedro Reinel (c. 1504) is one of the oldest known nautical charts with a scale of latitudes and constructed on the basis of astronomical observations."
     potd_2009_11_14_w.jpg "An African American man climbs the stairs to a theater\"s 'colored\" entrance in Belzoni, Mississippi, in 1939."
     potd_2010_01_21_c.jpg "USS Bunker Hill hit by two Kamikazes in 30 seconds on 11 May 1945 off Kyushu."
+    potd_2010_02_21_c.jpg "Sphaerophoria scripta on a Hawkweed flower (Hieracium sp.)"
     potd_2010_07_12_w.jpg "An M777 Light Towed Howitzer in service with the U.S. Army10th Mountain Division in support of Operation Enduring Freedom in Logar Province, Charkh District, Afghanistan."
+    potd_2010_08_05_c.jpg "Fishermen from Lorenzkirch on the Elbe in front of Strehla, Saxony, Germany."
     potd_2010_09_05_c.jpg "National Chiang Kai-shek Memorial Hall in Taipei (Republic of China)"
     potd_2010_09_10_c.png "Illustration showing the anatomy of a mosquito (Culex pipiens)"
+    potd_2011_02_18_w.jpg "An elaborate sand sculpture display at the Sand Sculpting Australia \"Dinostory\" festival."
     potd_2011_03_31_c.png "Bevel gear (toothed wheels)"
+    potd_2011_12_30_w.jpg "Pure (99.97+%) iron chips, electrolytically refined, as well as a high purity 1\xA0cm3 iron cube for comparison."
     potd_2012_01_09_c.jpg "Varanasi, India as seen from Ganga river."
     potd_2012_03_08_w.jpg "A human eye displaying partial heterochromia iridum, where part of one iris is a different color from its remainder."
     potd_2012_04_29_c.jpg "Horse and rider in an obstacle race."
     potd_2012_05_18_c.jpg "Northeast Pavilion."
+    potd_2012_06_12_c.jpg "The audience seen from the rear of the stage at the former Metropolitan Opera House in New York City at a concert by classical pianist Josef Hofmann on November 28, 1937."
+    potd_2012_08_18_w.jpg "Six beryllium mirror segments of the James Webb Space Telescope (JWST) undergoing a series of cryogenic tests at NASA's Marshall Space Flight Center in Huntsville, Alabama."
     potd_2012_09_08_c.png "Łęczyca Voivodeship coat of arms."
     potd_2012_10_23_w.jpg "A view of the internal components of a 1998 Seagatehard disk drive (HDD)."
     potd_2012_12_06_c.jpg "Yak near Yamdrok lake, Tibet."
     potd_2012_12_08_c.jpg "Railway station in Kreiensen in the district of Northeim, Lower Saxony, Germany in the year 1963."
+    potd_2013_01_16_w.jpg "Nasser Al-Attiyah, a Qatari rally driver, in a Ford Fiesta S2000 at the 2010 Rally Finland."
+    potd_2013_03_15_w.jpg "Robin Hunicke (b. 1973) is an American video game designer and producer who worked for several companies before establishing her own, Funomena, in 2011."
     potd_2013_07_01_w.jpg "Poster for Queen Christina, a Pre-Code Hollywood biographical film produced in 1933 and directed by Rouben Mamoulian."
+    potd_2013_07_04_w.jpg "Official portrait of the 1899 Michigan Wolverines football team, an American football team which represented the University of Michigan in the 1899 season."
+    potd_2013_08_28_w.jpg "The ladder snake (Rhinechis scalaris) is found mostly in peninsular Spain, Portugal, and southern France."
     potd_2013_10_28_c.jpg "Main facade of the Academy of Athens, Greece"
+    potd_2013_11_12_c.jpg "Mergozzo at the Lago di Mergozzo, rowing boats, (motorboats forbidden)."
+    potd_2013_12_29_w.jpg "Sign painting is the art of painting announcements or advertisements on buildings, billboards or signboards."
     potd_2014_01_14_w.jpg "The Humble Oil Building in Houston, Texas, was completed by the Humble Oil and Refining Company in 1921."
     potd_2014_04_01_c.jpg "Eastern span of the San Francisco–Oakland Bay Bridge."
     potd_2014_07_24_c.jpg "Birdy at the SWR3 New Pop Festival in Baden-Baden 2013"
@@ -303,6 +269,7 @@ set FAVORITES {
     potd_2015_06_29_c.jpg "Plastic pipes in the tool shed of the Quarzwerke in Sythen, Haltern am See, Germany"
     potd_2015_07_11_c.jpg "Lettering guides for technical drawings."
     potd_2015_08_18_c.jpg "Elephant Rock in the cliffs of the island Heimaey, Westman Islands, Suðurland, Iceland."
+    potd_2015_08_30_w.jpg "Nighthawks is an oil painting on canvas completed by the American artist Edward Hopper in 1942."
     potd_2015_12_01_c.jpg "Fireworks over Ponte Vecchio in Florence, Italy."
     potd_2016_02_05_c.jpg "Niels Simonsen, Retreat from Dannevirke, 1864, 1864, Det Nationalhistoriske Museum på Frederiksborg Slot Episode of the retreat from Dannevirke, 5 - 6 February 1864 - Battle of Sankelmark and Oeversee."
     potd_2016_04_22_w.jpg "A banknote for two Massachusetts shillings, or 1/10 of a Massachusetts pound, dated 1 May 1741."
@@ -310,34 +277,55 @@ set FAVORITES {
     potd_2016_05_12_w.jpg "The Art of Painting is a 17th-century oil painting on canvas by Dutch painter Johannes Vermeer."
     potd_2016_05_19_c.jpg "Pipe organ of the church of the Society of Jesus (La Iglesia de la Compañía de Jesús), a Jesuit church in Quito, Ecuador."
     potd_2016_06_22_w.jpg "A lithograph by Thaddeus Mortimer Fowler showing the town of New Kensington, Pennsylvania, in 1896."
+    potd_2016_07_12_w.png "Halftone is the reprographic technique that simulates continuous tone imagery through the use of dots, varying either in size or in spacing, thus generating a gradient-like effect."
     potd_2016_07_17_w.jpg "Ty Cobb (1886–1961), shown here sliding into third base on August 16, 1924, was an American Major League Baseball (MLB) outfielder."
     potd_2016_08_15_w.jpg "Shane Tuck, a United States Navy mass communication specialist, conducting underwater photography training off the coast of Guantanamo Bay, Cuba, in 2012."
     potd_2016_11_04_c.jpg "Old diesel locomotive TEM2M-063 in Vinnitsa railway station, Ukraine."
+    potd_2016_11_16_w.jpg "Bangles on display in Bangalore, India."
     potd_2016_12_13_c.jpg "The Palace of Justice in Munich was constructed in 1890-1897 by the architect Friedrich von Thiersch in neo-baroque style at the west side of Stachus."
     potd_2016_12_23_w.jpg "Nuremberg is a census-designated place in Schuylkill and Luzerne counties, Pennsylvania, United States."
     potd_2017_01_14_c.jpg "Shinjuku is a special ward in Tokyo, Japan."
+    potd_2017_02_22_w.jpg "A LufthansaAirbus A320-211 taking off at Stuttgart Airport, Germany."
     potd_2017_03_31_c.jpg "Main hall of BerlinCentral Station with incoming S-Bahn train."
+    potd_2017_04_03_c.jpg "Crypt of the Cádiz Cathedral, Cádiz, Andalusia, Spain."
     potd_2017_05_20_w.jpg "A Company of Danish Artists in Rome, painted by Constantin Hansen in 1837."
     potd_2017_06_22_w.jpg "The Evening Air, a c. 1893 oil painting on canvas by Henri-Edmond Cross (1856–1910)."
     potd_2017_11_15_w.jpg "A collection of sixteen wood samples, from left to right, top to bottom:"
+    potd_2018_03_03_c.jpg "Entrance to building on Sonnenstraße 15, Munich."
     potd_2018_03_05_w.jpg "A ten Canadian dollar note, dated 1935."
     potd_2018_03_14_c.jpg "Fractal forms on the coverside of a microwaved DVD"
+    potd_2018_04_20_c.jpg "A tape head cleaner cassette made of clear hard plastic."
     potd_2018_04_25_w.jpg "This Leica\xA0I camera was produced in 1927."
     potd_2018_05_04_c.jpg "May 4 is a traditional Firefighters' Day in many European countries."
+    potd_2018_05_15_c.jpg "Rumyantsevo metro station in Moscow, Russia."
+    potd_2018_06_07_c.JPG "Museum Brandhorst, Munich."
     potd_2018_06_18_w.jpg "A 15-cent banknote depicting Union Army generals William Tecumseh Sherman and Ulysses S. Grant, dated 1866 and intended as part of the fractional currency introduced to the United States following the American Civil War."
+    potd_2018_07_08_c.jpg "Ceiling of the Historical Court Bower, Lübeck, Schleswig-Holstein, Germany"
+    potd_2018_07_19_w.jpg "The Indian Head eagle was a ten-dollar gold piece, or eagle, struck by the United States Mint from 1907 until 1933."
     potd_2018_08_05_c.jpg "North wing of the cloister at Zwettl Abbey, Lower Austria"
     potd_2018_08_11_c.jpg "Entrance hall of the regional court of Berlin located in Littenstrasse 12-17 in Berlin-Mitte."
+    potd_2018_12_27_w.jpg "Hayley Williams (born December 27, 1988) is an American singer, songwriter, musician, and businesswoman."
     potd_2019_08_25_w.jpg "Wemyss Bay railway station serves the village of Wemyss Bay in Inverclyde, Scotland."
+    potd_2019_11_07_w.jpg "The Pool of Bethesda was a pool of water in the Muslim Quarter of Jerusalem, on the path of the Beth Zeta Valley."
     potd_2019_12_08_w.jpg "Dustin Brown (born 8\xA0December\xA01984) is a Jamaican-German professional tennis player."
     potd_2020_01_04_w.jpg "A Louis d'or is a French gold coin, first introduced by Louis\xA0XIII in 1640, featuring a depiction of the head of a King Louis on one side of the coin, from which its name derives."
     potd_2020_02_09_c.jpg "Interior view of the Holy Cross Church in Dülmen, North Rhine-Westphalia, Germany"
+    potd_2020_03_11_c.jpg "Weeping Golden Willow."
     potd_2020_04_20_w.jpg "Duke Humfrey's Library is the oldest reading room in the Bodleian Library at the University of Oxford."
-    potd_2020_04_25_w.jpg "Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
+    potd_2020_04_25_w.jpg "HARDEST? Tract housing evolved in the 1940s when the demand for cheap housing rocketed after World War\xA0II."
+    potd_2020_06_26_w.jpg "San Lorenzo, also known as the Royal Church of Saint Lawrence, is a Baroque-style church in Turin, Italy."
+    potd_2020_08_21_w.png "This is an animation showing geocentric satellite orbits, to scale with the Earth, at 3,600 times actual speed."
     potd_2020_11_04_c.jpg "Panorama road between Waltensburg / Vuorz and Breil/Brigels."
+    potd_2020_11_07_c.jpg "HARDEST? Heap of cans outside the South Korea Pavilion of Expo 2015."
     potd_2021_01_13_c.jpg "Dunes and shadows in Sossusvlei, Namibia."
     potd_2021_01_19_c.jpg "Interior of Santa Isabel Theater in the Brazilian city of Recife, capital of Pernambuco state."
+    potd_2021_02_03_c.jpg "Dichroic prismWikipedia: Dichroic prism"
+    potd_2021_03_20_c.jpg "Kurdish family watching Nowruz celebration, Besaran village, Eastern Kurdistan."
     potd_2021_03_30_w.jpg "Vincent van Gogh (30\xA0March\xA01853\xA0– 29\xA0July\xA01890) was a Dutch Post-Impressionist painter and one of the most famous and influential figures in the history of Western art."
+    potd_2021_07_30_w.jpg "Nebotičnik is a high-rise building located in the centre of Ljubljana, Slovenia."
     potd_2021_10_23_c.jpg "The Stata Center, an academic complex at the Massachusetts Institute of Technology designed by Frank Gehry"
+    potd_2022_04_02_w.jpg "Sand is a granular material composed of finely divided rock and mineral particles."
+    potd_2022_05_19_w.jpg "The Supermarine Spitfire is a British single-seat fighter aircraft that was used by the Royal Air Force and other Allied countries before, during, and after World War II."
     potd_2022_06_14_w.png "The checker shadow illusion is an optical illusion published in 1995 by Edward Adelson, an American professor of vision science at the Massachusetts Institute of Technology."
     potd_2022_07_13_c.jpg "The Oval Hall of the Saint Michael's Castle in Saint Petersburg, Russia"
     potd_2022_07_24_c.jpg "Guard at the Prague castle, Prague."
@@ -346,8 +334,13 @@ set FAVORITES {
     potd_2023_02_27_c.jpg "Oranges – whole, halved and peeled segment"
     potd_2023_03_13_w.jpg "The Olympus OM-D E-M1 Mark III is the third iteration of the flagship camera in the series of OM-D mirrorless interchangeable-lens cameras produced by Olympus on the Micro Four-Thirds system."
     potd_2023_03_19_c.jpg "Royal pavilion in Phraya Nakhon Cave in Khao Sam Roi Yot National Park, Prachuap Khiri Khan province, Thailand"
+    potd_2023_04_07_c.jpg "Romanesque crucifixion group at Seckau Basilica, Styria, Austria"
     potd_2023_05_26_w.png "Thyroid hormones are hormones produced and released by the thyroid gland, namely triiodothyronine (T3) and thyroxine (T4)."
-    potd_2016_11_16_w.jpg "Bangles on display in Bangalore, India."
+    potd_2023_05_29_w.jpg "Mount Everest is Earth's highest mountain above sea level, located in the Himalayas along the China–Nepal border."
+    potd_2023_08_08_c.jpg "Interior of the main hall of the Museum of the History of Polish Jews in Warsaw, Poland."
+    potd_2023_12_18_c.jpg "Indian peafowl (Pavo cristatus) in Ribeirão Preto, São Paulo, Brazil"
+    potd_2024_01_11_c.jpg "An ultrawide angle panoramic view along the inside of L'Umbracle, designed by renowned Spanish architect Santiago Calatrava, in the City of Arts and Sciences in Valencia, Spain."
+    potd_2024_06_06_c.jpg "Chkalovskaya metro station in Yekaterinburg, Russia."
 }
 
 set text_font [concat [font actual TkDefaultFont] -size 15]
@@ -1699,7 +1692,7 @@ proc PerfectShuffle {values} {
 }
 proc ClickDown {x y} {
     # Handles button down event
-    global S G STATS
+    global S G
 
     set S(click,who) None
     if {$S(MOTIF) eq ""} return
@@ -1720,7 +1713,7 @@ proc ClickDown {x y} {
     .c raise $tag
     .c config -cursor fleur
 
-    TimerStart
+    ::Timer::Start
 }
 proc ClickMove {x y} {
     # Handles button move event
@@ -1764,7 +1757,9 @@ proc ClickUp {x y} {
         SwapTiles $S(MOTIF) $tag $dest
     }
 }
-proc Timer {} {
+namespace eval ::Timer {}
+
+proc ::Timer::Tick {} {
     # Handles updating the timer dialog display
     global STATS
 
@@ -1779,9 +1774,9 @@ proc Timer {} {
     }
     set STATS(pretty,time) [format %02d:%02d $minutes $seconds]
     if {$duration > 100 * 60} return
-    set STATS(time,aid) [after 1000 Timer]
+    set STATS(time,aid) [after 1000 ::Timer::Tick]
 }
-proc TimerReset {} {
+proc ::Timer::Reset {} {
     # Resets display on the timer dialog
     global STATS
     set STATS(time,start) [set STATS(count) [set STATS(bad) 0]]
@@ -1789,15 +1784,15 @@ proc TimerReset {} {
     set STATS(playback) {}
     TallyMarks False
 }
-proc TimerStart {} {
+proc ::Timer::Start {} {
     # Starts a stopwatch
     global STATS
     if {$STATS(time,start) == 0} {
         set STATS(time,start) [clock seconds]
-        Timer
+        ::Timer::Tick
     }
 }
-proc TimerStop {} {
+proc ::Timer::Stop {} {
     # Stops a stopwatch
     global STATS
     after cancel $STATS(time,aid)
@@ -1859,7 +1854,7 @@ proc SwapTiles {MOTIF tag1 dest} {
     }
     if {[IsSolved]} {
         TallyMarks True
-        TimerStop
+        ::Timer::Stop
         ::Victory::Victory
     }
     if {$puzzle_done && $::BB(Puzzle)} {
@@ -2190,7 +2185,7 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
 
     UpdateDescriptionDialog $S(pretty,source) $S(potd,desc)
     ::Magic::UpdateImage
-    TimerReset
+    ::Timer::Reset
     ::Stars::MarkBad
 
     destroy .status
@@ -2624,6 +2619,7 @@ proc PreviewImage {verb} {
     global S ST
 
     if {! $ST(preview,onoff)} return
+    ::Favorites::PlaceWindow
 
     if {$verb eq "create"} {
         .c create image 0 0 -image $S(img) -anchor nw -tag preview
@@ -2756,7 +2752,7 @@ proc ::Magic::OneTile {} {
     if {$S(img) eq "TBD"} return
     if {[IsSolved]} return
 
-    TimerStart
+    ::Timer::Start
     if {! [::Magic::IsForced] && "S" ni $STATS(playback)} {
         lappend STATS(playback) "S"
     }
@@ -2776,7 +2772,7 @@ proc ::Magic::RandomSwap {} {
     if {$S(img) eq "TBD"} return
     if {[IsSolved]} return
 
-    TimerStart
+    ::Timer::Start
     set unsolved_tiles {}
     foreach idx [range [llength [array names G *,isAt]]] {
         if {$G($idx,isAt) != $idx} {
@@ -2808,7 +2804,7 @@ proc ::Magic::Row {} {
     if {$S(img) eq "TBD"} return
     if {[IsSolved]} return
 
-    TimerStart
+    ::Timer::Start
     unset -nocomplain unsolved
     set all_rows {}
     foreach slot [range [llength [array names G *,isAt]]] {
@@ -2834,7 +2830,7 @@ proc ::Magic::Solve {} {
     if {$S(img) eq "TBD"} return
     if {[IsSolved]} return
 
-    TimerStart
+    ::Timer::Start
     if {! [::Magic::IsForced] && "S" ni $STATS(playback)} {
         lappend STATS(playback) "S"
     }
@@ -2850,7 +2846,7 @@ proc ::Magic::Solve {} {
         SwapTiles $S(MOTIF) tile_$who $who
         if {[IsSolved]} break
     }
-    TimerStop
+    ::Timer::Stop
 }
 proc ::Magic::UnsolvedSets {} {
     global G S
@@ -2858,7 +2854,6 @@ proc ::Magic::UnsolvedSets {} {
     if {$S(img) eq "TBD"} return
     if {[IsSolved]} return
 
-    TimerStart
     set unsolved_tiles {}
     foreach idx [range [llength [array names G *,isAt]]] {
         if {$G($idx,isAt) != $idx} {
@@ -3274,7 +3269,6 @@ proc UpdateDescriptionDialog {source description} {
         $t insert end "\u2022 $description\n\n"
         $t see end
     }
-    # $t config -state disabled
 }
 
 proc Puzzle {} {
@@ -3285,23 +3279,23 @@ proc Puzzle {} {
     $BB(Puzzle,w) config -text $text
 
     if {$S(img) eq "TBD" || [IsSolved]} {
-        set msg "Puzzling turned off"
+        set msg "Expert mode turned off"
         if {$BB(Puzzle)} {
-            set msg "Puzzling turned on"
+            set msg "Expert mode turned on"
         }
         if {$S(img) eq "TBD"} {
             set msg "You need to open an image first"
         }
-        ShowStatus "Puzzle" $msg killafter=3000
+        ShowStatus "Expert Mode" $msg killafter=3000
         return
     }
     if {$BB(Puzzle) == 1} {
         $S(MOTIF) MakeQuestionTiles 3 $G(solved,tiles)
-        Logger "Puzzling 3 tiles"
+        Logger "Obscuring 3 tiles"
         ::Stars::MakeStars
     } else {
         $S(MOTIF) UnmakeQuestionTiles
-        Logger "Unpuzzling all tiles"
+        Logger "Clearing all tiles"
         ::Stars::UnMakeStars
     }
 }
@@ -3362,15 +3356,16 @@ namespace eval ::Favorites {
     variable POTDNAME
     variable TREE ""
     variable SORTED {}
+    variable VISITED {}
 }
 proc ::Favorites::Dialog {} {
     variable TREE
 
     set top .favorites
     set body [DialogTemplate Favorites $top "Favorite PotD Images"]
-    wm geom $top +300+150
-    wm transient $top {}
+    wm transient $top .
     wm resizable [winfo toplevel $body] 1 1
+    ::Favorites::PlaceWindow
 
     set parent $body.upper
     destroy $parent
@@ -3386,8 +3381,9 @@ proc ::Favorites::Dialog {} {
     if {! $::S(filesystem,writable)} { destroy $body.buttons.add }
 
     set font [::ttk::style lookup [$parent cget -style] -font]
-    set headers {Date Service Description}
-    set hwidths [list [font measure $font "December 31, 2023 xxxx"] \
+    set headers {"" Date Service Description}
+    set hwidths [list [font measure $font "\u2714\u2714"] \
+                 [font measure $font "December 31, 2023 xxxx"] \
                      [font measure $font "Wikipedia xx"] \
                      [font measure $font [string repeat "e" 70]]]
     set TREE [::ButtonListBox::Create $parent -headers $headers -widths $hwidths -banding 1]
@@ -3405,21 +3401,11 @@ proc ::Favorites::FillIn {tree} {
     }
     return [expr {[llength $FAVORITES] / 2}]
 }
-proc ::Favorites::FixDescriptionSize {tree} {
-    # We need this code to happen after the window has been drawn with the default size
-    update
-    set width [$tree column \#3 -width]
-    set font [::ttk::style lookup [$tree cget -style] -font]
-    foreach id [$tree children {}] {
-        set description [lindex [$tree item $id -values] end]
-        set needed_width [font measure $font $description]
-        set width [expr {max($width, $needed_width)}]
-    }
-    $tree column \#3 -width $width
-}
 proc ::Favorites::FillInSingle {tree potdname description} {
     variable POTDNAME
+    variable VISITED
 
+    set visited [expr {$potdname in $VISITED ? "\u2714" : " "}]
     lassign [DecodePotDFilename $potdname] status service year month day
     if {$status} {
         set month [clock format [clock scan "$year-$month-$day"] -format %B]
@@ -3430,7 +3416,7 @@ proc ::Favorites::FillInSingle {tree potdname description} {
     if {[string match "/*" $potdname]} {
         set service "Local"
     }
-    set id [::ButtonListBox::AddItem $tree [list $date $service $description]]
+    set id [::ButtonListBox::AddItem $tree [list $visited $date $service $description]]
     set POTDNAME($id) $potdname
     set POTDNAME($potdname) $id
 
@@ -3443,12 +3429,45 @@ proc ::Favorites::ClickMe {id} {
     set who $POTDNAME($id)
     $TREE selection set $id
     $TREE see $id
+    ::Favorites::MarkVisited $id $who
+
     if {[string match "/*" $who] || [string match "./*" $who]} {
         GetLocalPicture False $who
     } else {
         _forcePotD $who
     }
-    raise . .favorites
+    ::Favorites::PlaceWindow
+}
+proc ::Favorites::MarkVisited {id who} {
+    variable TREE
+    variable VISITED
+
+    if {$who ni $VISITED} { lappend VISITED $who }
+
+    set values [$TREE item $id -values]
+    lset values 0 \u2714
+    $TREE item $id -values $values
+}
+proc ::Favorites::PlaceWindow {} {
+    set slave .favorites
+    if {! [winfo exists $slave]} return
+    set n [scan [wm geometry .] "%dx%d+%d+%d" width height x0 y0]
+    if {$n != 4} return
+    set x1 [expr {$x0 + $width + 5}]
+    wm geometry $slave +$x1+$y0
+}
+
+proc ::Favorites::FixDescriptionSize {tree} {
+    # We need this code to happen after the window has been drawn with the default size
+    update
+    set width [$tree column \#4 -width]
+    set font [::ttk::style lookup [$tree cget -style] -font]
+    foreach id [$tree children {}] {
+        set description [lindex [$tree item $id -values] end]
+        set needed_width [font measure $font $description]
+        set width [expr {max($width, $needed_width)}]
+    }
+    $tree column \#4 -width $width
 }
 proc ::Favorites::Add {} {
     global S FAVORITES
@@ -3511,17 +3530,6 @@ proc ::Favorites::ReadInifile {} {
     close $fin
     Logger "Added $count favorites"
 }
-proc Shuffle {myList} {
-    set len [llength $myList]
-    while {$len} {
-        set n [expr {int($len * rand())}]
-        set tmp [lindex $myList $n]
-        lset myList $n [lindex $myList [incr len -1]]
-        lset myList $len $tmp
-    }
-    return $myList
-}
-
 proc ::Favorites::Random {} {
     variable TREE
     variable SORTED
@@ -3539,6 +3547,17 @@ proc ::Favorites::Random {} {
         set id $POTDNAME($potd)
         ::Favorites::ClickMe $id
     }
+}
+
+proc Shuffle {myList} {
+    set len [llength $myList]
+    while {$len} {
+        set n [expr {int($len * rand())}]
+        set tmp [lindex $myList $n]
+        lset myList $n [lindex $myList [incr len -1]]
+        lset myList $len $tmp
+    }
+    return $myList
 }
 
 proc CheckImageMagick {} {
@@ -3661,6 +3680,7 @@ proc main {} {
     append msg "To get started:\n"
     append msg "$arrow Load image from Wikipedia PotD\n"
     append msg "$arrow Load image from Commons PotD\n"
+    append msg "$arrow Grab an image from Favorites\n"
     append msg "$arrow Open a local image"
     ShowStatus $title $msg button=Start
 
@@ -3721,6 +3741,18 @@ proc ::Stars::_XY {x y delta} {
     }
     return $coords
 }
+proc bird {} {
+    # Too many Wikipedia PotD of birds
+    global S
+    puts "KPV: birding $S(potd,current)"
+    set fname jsBirds.txt
+    if {! [file exists $fname]} return
+    set fout [open $fname a]
+    puts $fout $S(potd,current)
+    close $fout
+}
+if {$S(beta)} {bind all <Control-b> bird}
+
 proc TallyMarks {solved} {
     global STATS
 
@@ -3761,14 +3793,4 @@ proc CanvasColoredString {tag x y font tuples} {
 # set color red
 # ttk::style configure TFrame -background $color
 
-proc bird {} {
-    global S
-    puts "KPV: birding $S(potd,current)"
-    set fname jsBirds.txt
-    if {! [file exists $fname]} return
-    set fout [open $fname a]
-    puts $fout $S(potd,current)
-    close $fout
-}
-bind all <Control-b> bird
 main

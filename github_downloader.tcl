@@ -68,36 +68,40 @@ proc geturl_followRedirects {url args} {
         set url [eval ::uri::join [array get uri]]
     }
 }
-################################################################
-################################################################
-
 proc Popup {title msg} {
-    set big_bold_font [concat [font actual TkDefaultFont] -size 18 -weight bold]
+    set bigger_bold_font [concat [font actual TkDefaultFont] -size 48 -weight bold]
+    set big_font [concat [font actual TkDefaultFont] -size 24]
 
     destroy .pop
     toplevel .pop
-    wm geom .pop +400+200
     wm withdraw .pop
     wm overrideredirect .pop 1
 
     ::ttk::frame .pop.f -padding .3i -borderwidth 3 -relief solid
     pack .pop.f -side left -fill both -expand 1
-    ::ttk::label .pop.f.title -text $title -font $big_bold_font
-    ::ttk::label .pop.f.msg -text $msg -anchor c -justify c
+    ::ttk::label .pop.f.title -text $title -font $bigger_bold_font
+    ::ttk::label .pop.f.msg -text $msg -anchor c -justify c -font $big_font
     grid .pop.f.title -pady {0 .2i}
     grid .pop.f.msg
+
+    update
+    set x [expr {[winfo screenwidth .] / 2 - [winfo reqwidth .pop] / 2}]
+    wm geom .pop +$x+200
     wm deiconify .pop
     update
     raise .pop
 }
 
-if {$tcl_interactive} return
+################################################################
+################################################################
 
 wm withdraw .
 
 set title "Jigsaw Tiles Downloader"
 set msg "Downloading and expanding\nJigsaw Tiles from github"
 Popup $title $msg
+
+if {$tcl_interactive} return
 
 set data [DownloadGithubZip $github_url] ; list
 set tmpZipFile [SaveGithubZip $data]

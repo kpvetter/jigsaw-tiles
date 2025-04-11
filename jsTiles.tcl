@@ -11,15 +11,14 @@ exit
 #
 # TODO
 # Remove calendar, description, logs???
-# check image magick nagging
+# check ImageMagick nagging
 # jsTiles.log only in beta, expose to user???
 # check S(beta)
 # selecting color borders does not rescramble
-# About dialog: check, esp w/r/t Puzzling
-# figure out download from github approach
 # birds
 # Timer: pause while "You ran out of lives!" dialog is up
 # quit preview early???
+# grid id labels don't drag and drop properly
 #
 # DONE: make toplevels transient on .???
 # DONE: trim S(logger) if too big
@@ -32,6 +31,8 @@ exit
 # DONE: Favorites: another column for visited
 # DONE: Favorites dialog blocks preview
 # DONE: LaunchBrowser
+# DONE: check About
+# DONE: figure out download from github approach
 #
 # BUGS:
 # Commons 2009/10/08 is a VERY slow loading. svg/png with lots of transparency
@@ -44,7 +45,7 @@ exit
 #
 
 #  bad size: potd_2019_07_24_w.jpg
-#  always resize option (based on image magick)
+#  always resize option (based on ImageMagick)
 #  trim S(logger) size if too big???
 #  BUG: potd_2007_01_14_c.gif errs with "too many colors"
 #     => opening next image caused an error
@@ -57,7 +58,7 @@ exit
 #    description
 #    logs
 #  BUG??? clicking around while in preview???
-#  check image magick nagging
+#  check ImageMagick nagging
 #  tool buttons show/raise window, not close ???
 #  remove logging descriptions with saved PotD???
 #  disable moving tiles when Replay dialog is up???
@@ -86,7 +87,7 @@ exit
 #  DONE: save state
 #  DONE: stats from TallyUsage
 #  DONE: rescrambling and edge shadows don't work
-#  DONE: background wrong with transparent images and non-image magick scrambles
+#  DONE: background wrong with transparent images and non-image ImageMagick scrambles
 #  NO--IT'S OPTIONAL: remove local copy of descriptions
 #  DONE: colored tally marks
 #  DONE: too wide/narrow -- don't show  .6 ok     .41 bad   .56 maybe
@@ -102,7 +103,7 @@ exit
 #  FIXED: hitting solve still does Perfect
 #  DONE: tooltip updated for description
 #  FIXED: maxHeight didn't account for shadow borders
-#  DONE: used Image Magick to resize oversized web images
+#  DONE: used ImageMagick to resize oversized web images
 #
 #
 # Other image sources:
@@ -140,6 +141,8 @@ source [file join [file dirname $argv0] src/shadowborder.tcl]
 catch {namespace delete Baseshape}
 
 set S(title) "JigSaw Tiles"
+set S(creation) "April 2025"
+set S(creation) "August 2023"
 set S(version) "0.9"
 
 set S(beta) False
@@ -382,6 +385,7 @@ proc DoDisplay {} {
     ::ttk::frame .bottom -relief flat -borderwidth 0
 
     ::ttk::button .logo -image ::img::icon2 -command AboutDialog
+    ::tooltip::tooltip .logo "$S(title) by Keith Vetter"
 
     # Themes frame
     ::ttk::frame .themes -relief ridge -borderwidth 2 -padding .1i
@@ -1223,35 +1227,55 @@ proc AboutDialog {} {
     grid $body.t -row 1 -sticky nsew
 
     ::ttk::frame $body.buttons
-    ::ttk::button $body.buttons.close -text "OK" -command [list destroy $top]
-    ::ttk::button $body.buttons.desc -text "Descriptions" -command {DescriptionDialog 1}
-    ::ttk::button $body.buttons.log -text "Logs" -command ShowLog
-    ::ttk::button $body.buttons.magic -text "Magic" -command ::Magic::Dialog
+    ::ttk::button $body.buttons.ok -text "OK" -command [list destroy $top]
 
     grid $body.buttons -row 2 -sticky news
-    pack $body.buttons.close $body.buttons.desc $body.buttons.log \
-        $body.buttons.magic -side left -expand 1 -pady .2i
+    pack $body.buttons.ok -side left -expand 1 -pady .2i
 
     $body.t tag config title -font [concat $::text_font -weight bold -size 28]
     $body.t tag config heading1 -font [concat $::text_font -weight bold -size 24]
     $body.t tag config heading2 -font [concat $::text_font -weight bold]
     $body.t tag config keyword -font [concat $::text_font -slant italic]
+    $body.t tag config url -foreground blue -underline 1
+    $body.t tag bind url <1> {LaunchBrowser https://imagemagick.org/script/download.php}
 
-    $body.t insert end "$S(title) v$S(version)\nby Keith Vetter, August 2023" title "\n\n"
+    $body.t insert end "$S(title) v$S(version)\nby Keith Vetter, $S(creation)" title "\n\n"
     $body.t insert end "$S(title) is a puzzle game where a picture is divided into tiles "
     $body.t insert end "and those tiles scrambled. Your goal is to unscramble the picture by "
     $body.t insert end "drag and dropping tiles into their correct places.\n\n"
 
+    $body.t insert end "ImageMagick" heading1 "\n"
+
+    $body.t insert end "$S(title) is designed to use a third party utility called "
+    $body.t insert end "ImageMagick to resize and slice up images (Tcl/Tk has only "
+    $body.t insert end "limited image capabilities). "
+    $body.t insert end "$S(title) will work just fine without ImageMagick but will "
+    $body.t insert end "be both faster and more capable if ImageMagick is installed.\n\n"
+    if {$::tcl_platform(os) eq "Darwin"} {
+        $body.t insert end "ImageMagick can be installed with "
+        $body.t insert end "brew install imagemagick" keyword ". For more information see "
+        $body.t insert end "https://imagemagick.org/script/download.php" url ".\n\n"
+    } else {
+        $body.t insert end "ImageMagick can be downloaded from "
+        $body.t insert end "https://imagemagick.org/script/download.php" url ".\n\n"
+    }
+
+
     $body.t insert end "Picture to Scramble" heading1 "\n"
 
-    $body.t insert end "Local file\n" heading2
-    $body.t insert end "\u2022 Click " _ "Open" keyword " to select a local file\n"
-    $body.t insert end "\u2022 Click " _ "Next" keyword " to select the next file "
-    $body.t insert end "in last directory\n\n"
+    $body.t insert end "$S(title) is set up to automatically download interesting "
+    $body.t insert end "pictures from the Wikipedia or Wiki Commons archive of "
+    $body.t insert end "Picture of the Day images. Alternatively, you "
+    $body.t insert end "select any file off your local disk.\n\n"
 
     $body.t insert end "Picture of the Day\n" heading2
     $body.t insert end "\u2022 Click " _ "Wikipedia" keyword " to download a random Wikipedia PotD\n"
-    $body.t insert end "\u2022 Click " _ "Commons" keyword " to download a random Wiki Commons PotD\n\n"
+    $body.t insert end "\u2022 Click " _ "Commons" keyword " to download a random Wiki Commons PotD\n"
+
+    $body.t insert end "Local file\n" heading2
+    $body.t insert end "\u2022 Click " _ "Open" keyword " to select a local image file\n"
+    $body.t insert end "\u2022 Click " _ "Next" keyword " to select the next image file "
+    $body.t insert end "in last directory\n\n"
 
     $body.t insert end "Tiling" heading1 "\n"
     $body.t insert end "With out-of-the-box Tcl/Tk, four different types of "
@@ -1267,20 +1291,17 @@ proc AboutDialog {} {
     }
 
     $body.t insert end "\n"
-    $body.t insert end "Puzzling" heading1 "\n"
-    $body.t insert end "The Puzzling button hides three random tiles by hiding "
-    $body.t insert end "themselves. They still behave as normal tiles, and when they're "
-    $body.t insert end "placed in their proper location, they will reveal themselves. "
-    $body.t insert end "In the Magic dialog, you can control how the tiles are obscured.\n"
+    $body.t insert end "Expert Mode" heading1 "\n"
+    $body.t insert end "The Expert button obscures three random tiles by blurring them. "
+    $body.t insert end "The blurred tiles behave as normal tiles, and when they're "
+    $body.t insert end "placed in their proper location, they will reveal themselves.\n\n"
 
-    $body.t insert end "\n"
     $body.t insert end "Magic" heading1 "\n"
-    $body.t insert end "The Magic dialog provides access to some hidden "
-    $body.t insert end "functionality. "
+    $body.t insert end "The Magic dialog provides access to some hidden functionality. "
     $body.t insert end "This includes showing the grid used to carve up the image, "
-    $body.t insert end "and solving a random tile, random row or the entire puzzle. "
-    $body.t insert end "Sometimes the size of the tiles can be too big or small, and "
-    $body.t insert end "you can experiment with different size puzzles. "
+    $body.t insert end "or solving a random tile, random row or the entire puzzle. "
+    $body.t insert end "You difficulty slider controls how many tiles the image is "
+    $body.t insert end "divided into. "
     $body.t insert end "If the image was downloaded from Wikipedia or Commons, then "
     $body.t insert end "you can copy to the clipboard different URL's of that image."
     $body.t insert end "Other Magic features let you tweak some of the GUI parameters, "
@@ -1289,14 +1310,13 @@ proc AboutDialog {} {
 
     $body.t insert end "\n"
     $body.t insert end "Shortcuts" heading1 "\n"
-    $body.t insert end "\u2022 Right-click on any tessalation will make that "
+    $body.t insert end "\u2022 Right-click on a tessalation type to make that "
     $body.t insert end "the only tessalation used in scrambling\n"
     $body.t insert end "\u2022 Right-click on the Scramble button to enable all tessalations\n"
     $body.t insert end "\u2022 Right-click on \"Favorites\" to pick one at random"
 
     $body.t config -state disabled
 }
-proc ShowLog {} { wm deiconify .logs }
 
 proc Logger {msg {tag ""}} {
     # Add msg to the log dialog
@@ -1949,7 +1969,7 @@ proc AvailableThemes {} {
 }
 proc ShowStatus {title msg args} {
     # Puts up a dialog with a given message and title
-    kwargs ARGS killafter="" parent=. button=Close {*}$args
+    kwargs ARGS killafter="" parent=. button=Close subtitle="" {*}$args
 
     after cancel $::S(kill,after)
     set status .status
@@ -1968,10 +1988,15 @@ proc ShowStatus {title msg args} {
         ::ttk::frame $status -borderwidth 3 -relief ridge -padding .5i
         ::ttk::label $status.icon -image ::img::icon
         ::ttk::label $status.title -text $title -font $::bigger_bold_font -anchor c -justify c
+        ::ttk::label $status.subtitle -text $ARGS(subtitle) -font $::big_bold_font \
+            -anchor c -justify c
         ::ttk::label $status.msg -text $msg -anchor c -font $::bigger_font -justify l
         ::ttk::frame $status.bframe
 
         grid $status.icon $status.title -sticky news
+        if {$ARGS(subtitle) ne ""} {
+            grid ^ $status.subtitle -sticky news
+        }
         grid $status.msg - -sticky news -pady {.2i 0}
         grid $status.bframe -
 
@@ -2023,7 +2048,11 @@ proc kwargs {dest args} {
     }
     foreach arg $args {
         lassign [split $arg "="] key value
-        set var($key) [expr {$value eq "" ? True : $value}]
+        if {$value eq {""}} {
+            set var($key) ""
+        } else {
+            set var($key) [expr {$value eq "" ? True : $value}]
+        }
     }
 }
 proc GetPotDImage {{service ""} {override ""}} {
@@ -2137,7 +2166,7 @@ proc _DownloadBestSize {all fitness} {
             set S(img) [_ResizeWebImage $S(img) $S(itype) $maxWidth $maxHeight]
             set iwidth [image width $S(img)]
             set iheight [image height $S(img)]
-            Logger [string cat "New size with Image Magick: [PrettySize $iwidth $iheight]"]
+            Logger [string cat "New size with ImageMagick: [PrettySize $iwidth $iheight]"]
             break
         }
 
@@ -3003,7 +3032,7 @@ proc ::Magic::Dialog {} {
     ::tooltip::tooltip $left.potdname "Copy PotD encoded name to clipboard"
     ::tooltip::tooltip $left.preview "Preview image while loading it"
     ::tooltip::tooltip $left.shadows "Toggle color or black & white tile shadows"
-    ::tooltip::tooltip $left.scale "Always resize images to fit using Image Magick"
+    ::tooltip::tooltip $left.scale "Always resize images to fit using ImageMagick"
     ::tooltip::tooltip $left.ini "Save game state between sessions"
     ::tooltip::tooltip $left.quit "Close dialog"
 
@@ -3672,9 +3701,10 @@ proc main {} {
     set S(local,current) ""
     set S(pretty,source) ""
 
-    set title "$S(title)\nv$S(version)"
+    set title "$S(title)"
+    set subtitle "by Keith Vetter $S(creation)\nVerson $S(version)"
     set msg "Loading..."
-    ShowStatus $title $msg button=None
+    ShowStatus $title $msg button=None subtitle=$subtitle
 
     update
     ComputeBestSize
@@ -3688,7 +3718,7 @@ proc main {} {
     append msg "$arrow Load image from Commons PotD\n"
     append msg "$arrow Grab an image from Favorites\n"
     append msg "$arrow Open a local image"
-    ShowStatus $title $msg button=Start
+    ShowStatus $title $msg button=Start subtitle=$subtitle
 
     CheckImageMagick
 }

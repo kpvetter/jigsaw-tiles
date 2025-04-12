@@ -17,6 +17,7 @@ http::register https 443 [list ::tls::socket -tls1 1]
 package require uri
 
 set github_url https://github.com/kpvetter/jigsaw-tiles/archive/refs/heads/main.zip
+# NB. if you use curl you must add "-L" to follow redirects
 set zipMainFile jigsaw-tiles-main/jsTiles.tcl
 
 

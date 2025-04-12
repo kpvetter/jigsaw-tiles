@@ -9,3 +9,5 @@ to unscramble the image by swapping tiles.
 You can choose any picture on you computer to turn into a puzzle. Or more
 conveniently, you can have Jigsaw Tiles select a random picture from
 Wikipedia's or Wiki Common's archive of Picture of the Day images.
+
+![Screenshot](https://github.com/kpvetter/jigsaw-tiles/blob/main/screenshot.png)

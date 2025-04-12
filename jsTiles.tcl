@@ -10,13 +10,10 @@ exit
 # by Keith Vetter 2023-07-30
 #
 # TODO
-# Remove calendar, description, logs???
-# jsTiles.log only in beta, expose to user???
-# check S(beta)
-# birds
-# Timer: pause while "You ran out of lives!" dialog is up
 # quit preview early???
-# grid id labels don't drag and drop properly
+# fix README.md
+# shuffle favorites?
+# Magic remove solve section
 #
 # DONE: make toplevels transient on .???
 # DONE: trim S(logger) if too big
@@ -33,8 +30,13 @@ exit
 # DONE: figure out download from github approach
 # DONE: check ImageMagick nagging
 # DONE: selecting color borders does not rescramble
+# SKIP: jsTiles.log only in beta, expose to user???
+# SKIP: Remove calendar, description, logs???
+# DONE: birds
+# SKIP: grid id labels don't drag and drop properly
 #
 # BUGS:
+# Timer: pause while "You ran out of lives!" dialog is up
 # Commons 2009/10/08 is a VERY slow loading. svg/png with lots of transparency
 #   - potd_2009_10_08_c.png
 #   - need to adjust min ratio to view: set S(min,ratio) .48
@@ -42,69 +44,6 @@ exit
 #   - month: https://commons.wikimedia.org/wiki/Template:Potd/2009-10
 #   - day: https://commons.wikimedia.org/wiki/File:Ornamental_Alphabet_-_16th_Century.svg
 #   - image: https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Ornamental_Alphabet_-_16th_Century.svg/1280px-Ornamental_Alphabet_-_16th_Century.svg.png
-#
-
-#  bad size: potd_2019_07_24_w.jpg
-#  always resize option (based on ImageMagick)
-#  trim S(logger) size if too big???
-#  BUG: potd_2007_01_14_c.gif errs with "too many colors"
-#     => opening next image caused an error
-#  change Expert/hidden icon
-#  too small image: potd_2004_11_09_c.jpg (350x263)
-#  bypass too short/wide check
-#  animated gif: potd_2015_02_05_w.gif
-#  REMOVE???
-#    calendar
-#    description
-#    logs
-#  BUG??? clicking around while in preview???
-#  check ImageMagick nagging
-#  tool buttons show/raise window, not close ???
-#  remove logging descriptions with saved PotD???
-#  disable moving tiles when Replay dialog is up???
-#  selecting color borders does not rescramble
-#  update About dialog, including wiki_potd.tcl
-#  Favorites
-#     double click to select???
-#     enter to select???
-#
-#     mark favorites active and/or viewed  \u2610 & \u2611 & \u2612
-#     better click select -- button is not obvious
-#     fix banding
-#     fix horizontal scrolling: no scroll bar, growing columns should all be in last column
-#        set column width to full size but somehow constrain window size
-#
-#  DONE: resize with ImageMagick if available
-#  DONE: message about ImageMagick
-#  DONE: optionally load wiki_potd.tcl
-#  DONE: rename file README.potd
-#  DONE: resize: don't have to hit button to install
-#  DONE: best fit for "Victory" message
-#  DONE: user delete bad HTML ShowStatus dialog
-#  DONE: use jsliders.log instead for cached descriptions
-#  NO: move Baseshape::MakeQuestionTiles into jigsaw.tcl
-#  NO: work w/o wiki_potd.tcl
-#  DONE: save state
-#  DONE: stats from TallyUsage
-#  DONE: rescrambling and edge shadows don't work
-#  DONE: background wrong with transparent images and non-image ImageMagick scrambles
-#  NO--IT'S OPTIONAL: remove local copy of descriptions
-#  DONE: colored tally marks
-#  DONE: too wide/narrow -- don't show  .6 ok     .41 bad   .56 maybe
-#  DONE: random swap (for EOG when all cells are the same)
-#  DONE: isForced tally marker
-#  DONE: wiki_potd bug with commons extracting day_url
-#  DONE: pick random from favorites
-#  DONE: potd_2006_11_24_c.jpg and potd_2024_02_16_c.jpg reported size incorrect
-#  DONE: tallymark for single/solve
-#  NO: potd_2005_05_30_c.jpg too small tiles: ratio .57 but small overall size 344x599
-#  NO: detect "deleted image" image : potd_2010_04_30_w.png, potd_2007_01_11_w.jpg, potd_2012_03_13_w.png
-#  DONE: default to Ell, Ess, Hexagon, Octagon, Trapezoid
-#  FIXED: hitting solve still does Perfect
-#  DONE: tooltip updated for description
-#  FIXED: maxHeight didn't account for shadow borders
-#  DONE: used ImageMagick to resize oversized web images
-#
 #
 # Other image sources:
 #  download random Wikimedia Commons images:
@@ -183,7 +122,7 @@ set ST(color,shadows) 0
 set ST(difficulty,raw) 0
 set ST(inifile,onoff) 1
 set ST(preview,onoff) 1
-set ST(tallyfile,onoff) off   ;# Set true to keep a log of every potd image downloaded
+set ST(tallyfile,onoff) off   ;# Set true in ini file to keep a log of every potd image downloaded
 set ST(last) ""
 
 set STATS(pretty,time) "00:00"
@@ -491,10 +430,7 @@ proc ButtonBar {bar} {
     set TT(About) "Toggles the About Dialog"
 
     # ttk::style configure Toolbutton -font $small_font
-    set tabs {Puzzle Timer Magic Date Desc Favorites About}
-    if {$::S(beta)} {
-        set tabs {Puzzle Timer Magic Date Desc Logs Favorites About}
-    }
+    set tabs {Puzzle Timer Magic Date Desc Logs Favorites About}
 
     foreach who $tabs {
         set w $bar._$who
@@ -1242,9 +1178,11 @@ proc AboutDialog {} {
     $body.t tag bind url <1> {LaunchBrowser https://imagemagick.org/script/download.php}
 
     $body.t insert end "$S(title) v$S(version)\nby Keith Vetter, $S(creation)" title "\n\n"
-    $body.t insert end "$S(title) is a puzzle game where a picture is divided into tiles "
-    $body.t insert end "and those tiles scrambled. Your goal is to unscramble the picture by "
-    $body.t insert end "drag and dropping tiles into their correct places.\n\n"
+    $body.t insert end "Jigsaw tiles is a variant of the classic jigsaw puzzle.\n\n"
+
+    $body.t insert end "Jigsaw tiles takes an image, divides it into a set of similar tiles "
+    $body.t insert end "(it \"tessalates\" the image) then shuffles the tiles. Your challenge is "
+    $body.t insert end "to unscramble the image by swapping tiles.\n\n"
 
     $body.t insert end "ImageMagick" heading1 "\n"
 
@@ -3801,15 +3739,15 @@ proc ::Stars::_XY {x y delta} {
 proc bird {} {
     # Too many damn birds on Wikipedia PotD
     global S
+    Logger "Another bird $S(potd,current)"
+    set S(pretty,desc) "Bird! $S(pretty,desc)"
     set fname jsBirds.txt
-    if {! [file exists $fname]} {
-        puts "KPV: birding $S(potd,current)"
-        return
+    if {! [file exists $fname]} return
+    catch {
+        set fout [open $fname a]
+        puts $fout "$S(potd,current)\t$S(potd,desc)"
+        close $fout
     }
-    puts "KPV: saving birding $S(potd,current)"
-    set fout [open $fname a]
-    puts $fout $S(potd,current)
-    close $fout
 }
 if {$S(beta)} {bind all <Control-b> bird}
 

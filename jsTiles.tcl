@@ -12,8 +12,6 @@ exit
 # TODO
 # quit preview early???
 # fix README.md
-# shuffle favorites?
-# Magic remove solve section
 #
 # DONE: make toplevels transient on .???
 # DONE: trim S(logger) if too big
@@ -34,6 +32,8 @@ exit
 # SKIP: Remove calendar, description, logs???
 # DONE: birds
 # SKIP: grid id labels don't drag and drop properly
+# DONE: Magic remove solve section
+
 #
 # BUGS:
 # Timer: pause while "You ran out of lives!" dialog is up
@@ -80,9 +80,9 @@ source [file join [file dirname $argv0] src/shadowborder.tcl]
 catch {namespace delete Baseshape}
 
 set S(title) "JigSaw Tiles"
-set S(creation) "April 2025"
-set S(creation) "August 2023"
-set S(version) "0.9"
+set S(posting,date) "April 2025"
+set S(creation,date) "August 2023"
+set S(version) "1.1"
 
 set S(beta) False
 if {$::tcl_platform(user) eq "kvetter"} { set S(beta) True }
@@ -98,7 +98,7 @@ set S(potd,current) ""
 set S(click,who) "None"
 set S(themes.start) {Ell Ess Hexagon Octagon Trapezoid}
 
-set S(tempdir) [fileutil::maketempdir -prefix jigsaw_tiles_]
+set S(tempdir) [fileutil::maketempdir -prefix jigsaw_tiles_kpv_]
 set S(local,cwd) ""
 
 set S(min,width) 300
@@ -164,7 +164,6 @@ set FAVORITES {
     potd_2008_06_17_w.jpg "The 71st plate from German biologist Ernst Haeckel'sKunstformen der Natur, showing radiolarians of the order Stephoidea."
     potd_2008_06_28_c.jpg "A fire in Massueville, Quebec, Canada."
     potd_2008_07_08_c.png "Rubik's cube."
-    potd_2008_08_12_c.jpg "Singer Veli Antti Hyyrynen of the Finnish thrash metal band Stam1na live at Nosturi, Helsinki"
     potd_2008_08_26_w.jpg "Pigments for sale at a market stall in Goa, India."
     potd_2008_12_23_w.jpg "An 1885 lithograph of a bird's-eye view of the city of Phoenix, Arizona, the fifth-most-populous city in the United States."
     potd_2009_01_23_c.jpg "Kinderdijk windmills, Netherlands."
@@ -459,7 +458,7 @@ proc ExtraButtons {bar} {
     ::ttk::button $bar.extra.solve -text Solve -command ::Magic::Solve
 
     ::tooltip::tooltip $bar.extra.random "Swap two random tiles"
-    ::tooltip::tooltip $bar.extra.single "Swap two tiles"
+    ::tooltip::tooltip $bar.extra.single "Correctly place one tile"
     ::tooltip::tooltip $bar.extra.solve "Finish solving the puzzle"
 
     pack {*}[winfo children $bar.extra] -expand 1
@@ -1177,7 +1176,7 @@ proc AboutDialog {} {
     $body.t tag config url -foreground blue -underline 1
     $body.t tag bind url <1> {LaunchBrowser https://imagemagick.org/script/download.php}
 
-    $body.t insert end "$S(title) v$S(version)\nby Keith Vetter, $S(creation)" title "\n\n"
+    $body.t insert end "$S(title) v$S(version)\nby Keith Vetter, $S(creation,date)" title "\n\n"
     $body.t insert end "Jigsaw tiles is a variant of the classic jigsaw puzzle.\n\n"
 
     $body.t insert end "Jigsaw tiles takes an image, divides it into a set of similar tiles "
@@ -1233,8 +1232,8 @@ proc AboutDialog {} {
     $body.t insert end "\n"
     $body.t insert end "Expert Puzzle Mode" heading1 "\n"
     $body.t insert end "The Expert button turns this into a harder puzzle. It choses "
-    $body.t insert end "three random tiles and pixilates them obscuring their content. "
-    $body.t insert end "These pixilated tiles behave as normal tiles, and when they're "
+    $body.t insert end "three random tiles and pixelates them obscuring their content. "
+    $body.t insert end "These pixelated tiles behave as normal tiles, and when they're "
     $body.t insert end "placed in their proper location, they will reveal themselves.\n\n"
 
     $body.t insert end "Magic" heading1 "\n"
@@ -1263,7 +1262,7 @@ proc AboutDialog {} {
     $body.t insert end "\u2022 $symbol_2\tboth tiles placed correctly\n" tabby
     $body.t insert end "\u2022 $symbol_b\tincorrectly placed tile\n" tabby
     $body.t insert end "\u2022 $symbol_S\thint given\n" tabby
-    $body.t insert end "\u2022 $symbol_done\tpuzzle finished\n" tabby
+    $body.t insert end "\u2022 $symbol_done\tremaining pieces are forced\n" tabby
 
     set tabs [font measure [$body.t cget -font] "\u2022 $symbol_done "]
     $body.t tag config tabby -tabs $tabs
@@ -2932,10 +2931,6 @@ proc ::Magic::Dialog {} {
     ::ttk::label $left.title -text "Magics" -font $::big_font
     ::ttk::checkbutton $left.show -text "Show grid" \
         -command ::Magic::ShowGrid -variable S(magic,grid)
-    ::ttk::button $left.random -text "Random Tile" -command ::Magic::RandomSwap
-    ::ttk::button $left.tile -text "Solve a tile" -command ::Magic::OneTile
-    ::ttk::button $left.row -text "Solve a row" -command ::Magic::Row
-    ::ttk::button $left.all -text "Solve puzzle" -command ::Magic::Solve
 
     ::ttk::button $left.bdiff -text "Rescramble" -command ::Magic::ChangeSize
     ::ttk::scale $left.sdiff -variable ST(difficulty,raw) \
@@ -2974,10 +2969,6 @@ proc ::Magic::Dialog {} {
         -font $::big_font -justify c
 
     ::tooltip::tooltip $left.show "Toggle showing cutout grid"
-    ::tooltip::tooltip $left.random "Randomly swap two tiles"
-    ::tooltip::tooltip $left.tile "Solve a random tile"
-    ::tooltip::tooltip $left.row "Solve a random row"
-    ::tooltip::tooltip $left.all "Solve the whole puzzle"
     ::tooltip::tooltip $left.month "Copy PotD month URL to clipboard"
     ::tooltip::tooltip $left.day "Copy PotD day URL to clipboard"
     ::tooltip::tooltip $left.image "Copy PotD image URL to clipboard"
@@ -2992,10 +2983,6 @@ proc ::Magic::Dialog {} {
     grid $left $body.img -sticky news
     grid $left.title -pady {0 .2i}
     grid $left.show -sticky ew -padx .1i
-    grid $left.random -sticky ew -pady {.2i 0}
-    grid $left.tile -sticky ew
-    grid $left.row -sticky ew
-    grid $left.all -sticky ew
     grid $left.bdiff -sticky ew -pady {.3i 0}
     grid $left.sdiff -sticky ew -padx .1i
     grid $left.ldiff -sticky ew
@@ -3661,7 +3648,7 @@ proc main {} {
     set S(pretty,source) ""
 
     set title "$S(title)"
-    set subtitle "by Keith Vetter $S(creation)\nVerson $S(version)"
+    set subtitle "by Keith Vetter $S(creation,date)\nVerson $S(version)"
     set msg "Loading..."
     ShowStatus $title $msg button=None subtitle=$subtitle
 
@@ -3736,20 +3723,24 @@ proc ::Stars::_XY {x y delta} {
     }
     return $coords
 }
-proc bird {} {
+proc bird {what} {
     # Too many damn birds on Wikipedia PotD
     global S
-    Logger "Another bird $S(potd,current)"
-    set S(pretty,desc) "Bird! $S(pretty,desc)"
+    if {[regexp {^[a-z]+! } $S(pretty,desc)]} return
+
+    Logger "Another $what $S(potd,current)"
+    set S(pretty,desc) "$what! $S(pretty,desc)"
     set fname jsBirds.txt
     if {! [file exists $fname]} return
     catch {
         set fout [open $fname a]
-        puts $fout "$S(potd,current)\t$S(potd,desc)"
+        puts $fout "$S(potd,current)\t$what\t$S(potd,desc)"
         close $fout
     }
 }
-if {$S(beta)} {bind all <Control-b> bird}
+if {$S(beta)} {bind all <Control-b> {bird bird}}
+if {$S(beta)} {bind all <Control-p> {bird portrait}}
+if {$S(beta)} {bind all <Control-a> {bird animal}}
 
 proc TallyMarks {solved} {
     global STATS

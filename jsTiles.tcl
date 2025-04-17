@@ -11,29 +11,6 @@ exit
 #
 # TODO
 # quit preview early???
-# fix README.md
-#
-# DONE: make toplevels transient on .???
-# DONE: trim S(logger) if too big
-# DONE: logging for "Solve" only put up single message
-# DONE: tessalation options not being saved
-# DONE Out of lives dialog:
-#   SKIP - disable tile movement
-#   DONE - better title
-#   DONE - better looking buttons
-# DONE: Favorites: another column for visited
-# DONE: Favorites dialog blocks preview
-# DONE: LaunchBrowser
-# DONE: check About
-# DONE: figure out download from github approach
-# DONE: check ImageMagick nagging
-# DONE: selecting color borders does not rescramble
-# SKIP: jsTiles.log only in beta, expose to user???
-# SKIP: Remove calendar, description, logs???
-# DONE: birds
-# SKIP: grid id labels don't drag and drop properly
-# DONE: Magic remove solve section
-
 #
 # BUGS:
 # Timer: pause while "You ran out of lives!" dialog is up

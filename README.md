@@ -3,19 +3,21 @@
 
 
 # Jigsaw Tiles
-Jigsaw tiles is a variant of the classic jigsaw puzzle.
+Jigsaw Tiles is a variant of the classic jigsaw puzzle.
 
-Jigsaw Tiles takes an image, divides it into a set of similar tiles
-(it "tessalates" the image) then shuffles the tiles. Your challenge is
+Jigsaw Tiles takes any image, divides it into a set of similar tiles
+then shuffles the tiles. Your challenge is
 to unscramble the image by swapping tiles.
 
-Jigsaw Tiles require [Tcl/Tk](https://www.tcl-lang.org/software/tcltk/9.0.html) to run.
+<img src="screenshot2.png" alt="Screenshot" width="500" height="auto">
 
+---
 ## Wikipedia Picture of the Day
 You can choose any picture on you computer to turn into a puzzle. Or more
 conveniently, you can have Jigsaw Tiles select a random picture from
-Wikipedia's or Wiki Common's archive of Picture of the Day images. It will
-automatically download and scale the image for you.
+Wikipedia's or Wiki Common's archive of
+[Picture of the Day](https://en.wikipedia.org/wiki/Wikipedia:Picture_of_the_day/Archive)
+images. It will automatically download and scale the image for you.
 
 ## Tessalations
 By default Jigsaw Tiles can divide your image into rectangles, squares, "L"
@@ -29,6 +31,9 @@ belong.
 
 ## License
 The software is release under the MIT License.
+
+## Requirements
+Jigsaw Tiles require [Tcl/Tk](https://www.tcl-lang.org/software/tcltk/9.0.html) to run.
 
 ---
 

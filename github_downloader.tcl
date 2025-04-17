@@ -6,6 +6,7 @@ exit
 ##+##########################################################################
 #
 # github_downloader.tcl -- Automatically download a github zip file
+# and launch the main file
 # by Keith Vetter 2025-04-01
 #
 
@@ -16,9 +17,11 @@ package require tls
 http::register https 443 [list ::tls::socket -tls1 1]
 package require uri
 
-set github_url https://github.com/kpvetter/jigsaw-tiles/archive/refs/heads/main.zip
-# NB. if you use curl you must add "-L" to follow redirects
+set github https://github.com/kpvetter/jigsaw-tiles
+
 set zipMainFile jigsaw-tiles-main/jsTiles.tcl
+set github_url https://github.com/kpvetter/jigsaw-tiles/archive/refs/heads/main.zip
+# NB. if you test using curl you must add "-L" to follow redirects
 
 
 proc DownloadGithubZip {github_url} {
@@ -69,28 +72,28 @@ proc geturl_followRedirects {url args} {
         set url [eval ::uri::join [array get uri]]
     }
 }
-proc Popup {title msg} {
+proc Splash {title msg} {
     set bigger_bold_font [concat [font actual TkDefaultFont] -size 48 -weight bold]
     set big_font [concat [font actual TkDefaultFont] -size 24]
 
-    destroy .pop
-    toplevel .pop
-    wm withdraw .pop
-    wm overrideredirect .pop 1
+    destroy .splash
+    toplevel .splash
+    wm withdraw .splash
+    wm overrideredirect .splash 1
 
-    ::ttk::frame .pop.f -padding .3i -borderwidth 3 -relief solid
-    pack .pop.f -side left -fill both -expand 1
-    ::ttk::label .pop.f.title -text $title -font $bigger_bold_font
-    ::ttk::label .pop.f.msg -text $msg -anchor c -justify c -font $big_font
-    grid .pop.f.title -pady {0 .2i}
-    grid .pop.f.msg
+    ::ttk::frame .splash.f -padding .3i -borderwidth 3 -relief solid
+    pack .splash.f -side left -fill both -expand 1
+    ::ttk::label .splash.f.title -text $title -font $bigger_bold_font
+    ::ttk::label .splash.f.msg -text $msg -anchor c -justify c -font $big_font
+    grid .splash.f.title -pady {0 .2i}
+    grid .splash.f.msg
 
     update
-    set x [expr {[winfo screenwidth .] / 2 - [winfo reqwidth .pop] / 2}]
-    wm geom .pop +$x+200
-    wm deiconify .pop
+    set x [expr {[winfo screenwidth .] / 2 - [winfo reqwidth .splash] / 2}]
+    wm geom .splash +$x+200
+    wm deiconify .splash
     update
-    raise .pop
+    raise .splash
 }
 
 ################################################################
@@ -100,13 +103,13 @@ wm withdraw .
 
 set title "Jigsaw Tiles Downloader"
 set msg "Downloading and expanding\nJigsaw Tiles from github"
-Popup $title $msg
+Splash $title $msg
 
 if {$tcl_interactive} return
 
 set data [DownloadGithubZip $github_url] ; list
 set tmpZipFile [SaveGithubZip $data]
-destroy .pop
+destroy .splash
 
 try {
     set zipVFS [::vfs::zip::Mount [file normalize $tmpZipFile] /__zip]

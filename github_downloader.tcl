@@ -118,6 +118,9 @@ try {
 
     set S(inside,zip) 1
     source [file tail $zipMainFile]
+    if {$tcl_platform(platform) eq "windows"} {
+        tkwait window .
+    }
 } finally {
     catch {file delete $tmpZipFile}
     catch {::vfs::zip::Unmount $zipVFS /__zip}

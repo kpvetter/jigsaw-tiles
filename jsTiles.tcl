@@ -11,6 +11,7 @@ exit
 #
 # TODO
 # quit preview early???
+# make splash screen prompts buttons???
 #
 # BUGS:
 # Timer: pause while "You ran out of lives!" dialog is up
@@ -1279,10 +1280,15 @@ proc Logger {msg {tag ""}} {
     }
     update
 }
-proc CleanUp {} {
+
+proc AtExit {args} {
     # Tasks to be done before exiting
+    global S
     SaveInifile
-    catch {file delete -force -- $::S(tempdir)}
+    catch {file delete -force -- $S(tempdir)}
+}
+proc CleanUp {} {
+    AtExit
     destroy .
     exit
 }
@@ -3610,6 +3616,12 @@ proc SaveInifile {} {
 proc main {} {
     global S
 
+    foreach tinfo [trace info execution exit] {
+        trace remove execution exit {*}$tinfo
+    }
+    trace add execution exit enter AtExit
+    trace add execution xx enter AtExit
+
     CreateLogsDialog
     LoadShapes
     LoadInifile
@@ -3635,12 +3647,13 @@ proc main {} {
     ::POTD::SetLogger ::Logger
 
     set arrow "\u27a1"
+    # set arrow "\u25b6\uFE0F"
     set msg ""
     append msg "To get started:\n"
-    append msg "$arrow Load image from Wikipedia PotD\n"
-    append msg "$arrow Load image from Commons PotD\n"
-    append msg "$arrow Grab an image from Favorites\n"
-    append msg "$arrow Open a local image"
+    append msg "    $arrow Load image from Wikipedia PotD\n"
+    append msg "    $arrow Load image from Commons PotD\n"
+    append msg "    $arrow Grab an image from Favorites\n"
+    append msg "    $arrow Open a local image"
     ShowStatus $title $msg button=Start subtitle=$subtitle
 
     CheckImageMagick
@@ -3779,5 +3792,6 @@ proc LaunchBrowser {url} {
 
 # set color red
 # ttk::style configure TFrame -background $color
+
 
 main

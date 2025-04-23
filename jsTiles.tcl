@@ -291,7 +291,6 @@ proc DoDisplay {} {
 
     wm title . $S(title)
     wm iconphoto . -default ::img::icon
-    wm protocol . WM_DELETE_WINDOW CleanUp
 
     ::ttk::frame .bg
     pack .bg -side top -fill both -expand 1
@@ -1286,11 +1285,6 @@ proc AtExit {args} {
     global S
     SaveInifile
     catch {file delete -force -- $S(tempdir)}
-}
-proc CleanUp {} {
-    AtExit
-    destroy .
-    exit
 }
 namespace eval ::Victory {
     variable VICT
@@ -3062,7 +3056,6 @@ proc ::Magic::ChangeSize {} {
 proc ::Magic::ColorShadows {} {
     # Toggles between black & white borders and color borders
     global S ST
-    SaveInifile
 
     set shadows [list white gray25]
     if {$ST(color,shadows)} {
@@ -3620,7 +3613,7 @@ proc main {} {
         trace remove execution exit {*}$tinfo
     }
     trace add execution exit enter AtExit
-    trace add execution xx enter AtExit
+    catch {trace add execution xx enter AtExit}
 
     CreateLogsDialog
     LoadShapes
@@ -3792,6 +3785,5 @@ proc LaunchBrowser {url} {
 
 # set color red
 # ttk::style configure TFrame -background $color
-
 
 main

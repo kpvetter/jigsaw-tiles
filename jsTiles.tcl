@@ -2136,7 +2136,6 @@ proc _Go {img source pretty_desc potd_desc {theme ""}} {
     .c create rect -1000 -1000 10000 10000 -tag background -fill white
     set theme [PickTheme $theme]
     set S(theme) $theme
-    SaveInifile
     Logger "Theme: $theme"
 
     set S(img,original) $img
@@ -3587,23 +3586,23 @@ proc SaveInifile {} {
     append data "geometry $x $y\n"
 
     set themes [lsort [lmap {k v} [array get S themes,*] {
-        if {! $v} continue ; return -level 0 [string range $k 7 end]
-    }]]
+        if {! $v} continue ; string range $k 7 end}]]
     append data "themes $themes"
+
     if {$data eq $ST(last)} {
         Logger "Skipping saving inifile, no changes $::S(inifile,file)"
         return
     }
     Logger "Saving inifile $::S(inifile,file)"
 
+    set fout [open $::S(inifile,file) w]
     try {
-        set fout [open $::S(inifile,file) w]
         set ST(last) $data
         puts $fout $data
     } on error {emgs} {
         Logger "Error writing $::S(inifile,file): $emsg" emsg
     } finally {
-        if {[info exists fout]} { close $fout }
+        close $fout
     }
 }
 proc main {} {

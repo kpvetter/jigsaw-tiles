@@ -112,7 +112,7 @@ proc ::Hexagon::_ExactShape {master_tile good_tile} {
     set xy [lmap {x y} $vertices {return -level 0 "$x,$y"}]
 
     $master_tile write $master_ifile -format $SQ(format)
-    exec convert -size ${w}x${h} xc:none -fill white \
+    exec magick -size ${w}x${h} xc:none -fill white \
         -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
     image create photo $good_tile -file $good_ifile
 
@@ -144,7 +144,7 @@ proc ::Hexagon::_MakeTemplates {} {
     lassign $pos x0 y0 x1 y1 x2 y2 x3 y3 x4 y4 x5 y5
     set xy "$x0,$y0 $x1,$y1 $x2,$y2 $x3,$y3 $x4,$y4 $x5,$y5"
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
         -stroke $SQ(color,shade1) -draw "line $x0,$y0 $x1,$y1" \
         -stroke $SQ(color,shade1) -draw "line $x0,$y0 $x5,$y5" \
         -stroke $SQ(color,shade1) -draw "line $x4,$y4 $x5,$y5" \
@@ -154,15 +154,15 @@ proc ::Hexagon::_MakeTemplates {} {
         $template_ifile
     image create photo $active_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
         -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
     image create photo $drag_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
         -stroke $SQ(color,explode) -draw "polygon $xy" $template_ifile
     image create photo $explode_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
         -stroke $SQ(color,shade1) -draw "polygon $xy" $template_ifile
     image create photo $quest_template -file $template_ifile
     ::Baseshape::_AddQuestionMark $quest_template
@@ -273,7 +273,7 @@ proc ::Hexagon::_MakeFrame {} {
     set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
     $SQ(img) write $image_ifile -format $SQ(format)
 
-    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+    exec magick -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
         "-draw" "polygon $xy" \
         $image_ifile -compose SrcOut -composite $frame_ifile
     image create photo $frame_iname -file $frame_ifile

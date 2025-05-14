@@ -32,7 +32,7 @@ proc ::Baseshape::Tile2XY {this where} { error "Not yet implemented" }
 proc ::Baseshape::XY2Tile {this x y} { error "Not yet implemented" }
 
 proc ::Baseshape::_HasImageMagick {} {
-    if {[auto_execok convert] eq ""} {
+    if {[auto_execok magick] eq ""} {
             return False
     }
     return True

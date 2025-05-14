@@ -100,7 +100,7 @@ proc ::Octagon::_CutShape {idx puzzle} {
     }
 
     $master_tile write $master_ifile -format $SQ(format)
-    exec convert -size ${w}x${h} xc:none -fill white \
+    exec magick -size ${w}x${h} xc:none -fill white \
         -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
     image create photo $good_tile -file $good_ifile
 
@@ -142,7 +142,7 @@ proc ::Octagon::_MakeTemplates {} {
     lassign $pos x0 y1 x1 y0 x2 _ x3 _ _ y2 _ y3 _ _ _ _
     set xy [lmap {x y} $pos {return -level 0 "$x,$y"}]
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
         -stroke $SQ(color,shade1) -draw "line $x2,$y3 $x2,$y3" \
         -stroke $SQ(color,shade1) -draw "line $x1,$y3 $x0,$y2" \
         -stroke $SQ(color,shade1) -draw "line $x0,$y2 $x0,$y1" \
@@ -154,15 +154,15 @@ proc ::Octagon::_MakeTemplates {} {
         $template_ifile
     image create photo $active_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
         -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
     image create photo $drag_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
         -stroke $SQ(color,explode) -draw "polygon $xy" $template_ifile
     image create photo $explode_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
         -stroke $SQ(color,shade1) -draw "polygon $xy" $template_ifile
     image create photo $quest_template -file $template_ifile
     ::Baseshape::_AddQuestionMark $quest_template
@@ -179,7 +179,7 @@ proc ::Octagon::_MakeActiveDragTiles {good_ifile active_tile drag_tile} {
     lassign $pos x0 y1 x1 y0 x2 _ x3 _ _ y2 _ y3 _ _ _ _
     set xy [lmap {x y} $pos {return -level 0 "$x,$y"}]
 
-    exec convert $good_ifile -fill transparent -strokewidth $SQ(strokewidth) \
+    exec magick $good_ifile -fill transparent -strokewidth $SQ(strokewidth) \
         -stroke $SQ(color,shade1) -draw "line $x2,$y3 $x2,$y3" \
         -stroke $SQ(color,shade1) -draw "line $x1,$y3 $x0,$y2" \
         -stroke $SQ(color,shade1) -draw "line $x0,$y2 $x0,$y1" \
@@ -189,7 +189,7 @@ proc ::Octagon::_MakeActiveDragTiles {good_ifile active_tile drag_tile} {
         -stroke $SQ(color,shade2) -draw "line $x3,$y1 $x3,$y2" \
         -stroke $SQ(color,shade2) -draw "line $x3,$y2 $x2,$y3" \
         $active_ifile
-    exec convert $good_ifile -stroke $SQ(color,drag) -fill transparent \
+    exec magick $good_ifile -stroke $SQ(color,drag) -fill transparent \
         -strokewidth $SQ(strokewidth) -draw "polygon $xy" $drag_ifile
 
     image create photo $active_tile -file $active_ifile
@@ -205,7 +205,7 @@ proc ::Octagon::_MakeFrame {frame_iname} {
     $SQ(img) write $image_ifile -format $SQ(format)
 
     # NB. frame has "holes" so we can't just cut along the convex hull
-    set cmd [list convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white]
+    set cmd [list magick -size ${SQ(w)}x${SQ(h)} xc:none -fill white]
     foreach idx [range $SQ(n,total)] {
         set pos [lindex $SQ(xy,$idx) 0]
         set xy [lmap {x y} $pos {return -level 0 "$x,$y"}]

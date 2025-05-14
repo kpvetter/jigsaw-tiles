@@ -11,7 +11,11 @@ exit
 #
 # TODO
 # quit preview early???
-# make splash screen prompts buttons???
+# show too small/wide picture's thumbnail???
+#   e.g. potd_2019_04_27_w.jpg
+#  check for animated GIF: Aug 11, 2009 Wikipedia  potd_2009_08_11_w.gif
+#   potd_2012_12_21_w.gif potd_2023_08_01_w.gif
+#
 #
 # BUGS:
 # Timer: pause while "You ran out of lives!" dialog is up
@@ -2120,8 +2124,8 @@ proc _ResizeWebImage {img itype maxWidth maxHeight} {
 
     set max_size "$S(maxWidth)x$S(maxHeight)"
     Logger "Resizing web image with ImageMagick"
-    Logger "  exec convert /.../[file tail $ifile] -resize $max_size /.../[file tail $ofile]"
-    exec convert $ifile -resize $max_size $ofile
+    Logger "  exec magick /.../[file tail $ifile] -resize $max_size /.../[file tail $ofile]"
+    exec magick $ifile -resize $max_size $ofile
     set img [image create photo -file $ofile]
 
     file delete $ifile
@@ -2351,8 +2355,8 @@ proc LoadScaledImage {scaling} {
     set max_size "$S(maxWidth)x$S(maxHeight)"
 
     Logger "Resizing with ImageMagick"
-    Logger "  exec convert $iname -resize $max_size $ofile"
-    exec convert $iname -resize $max_size $ofile
+    Logger "  exec magick $iname -resize $max_size $ofile"
+    exec magick $iname -resize $max_size $ofile
     set S(img) [image create photo ::img::master -file $ofile]
     set S(iwidth) [image width $S(img)]
     set S(iheight) [image height $S(img)]
@@ -2416,7 +2420,7 @@ proc _forcePotD {fname} {
 }
 proc FirstSentence {para} {
     # Given a paragraph of text, extract its first sentence
-    # https://stackoverflow.com/questions/3788220/extract-first-sentence-from-string-of-text
+    # Fails on "An image ... STS-1. Lorem ipsum."
 
     set n [regexp {[.?!].} $para]
     if {$n == 0} { return $para }
@@ -2437,7 +2441,8 @@ proc FirstSentence {para} {
     regsub $re $para {\1@aa.} para
 
     # Abbreviations that prematurely end a sentence
-    foreach abbrev {Mrs vs Gens Gen Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec ca bap St} {
+    foreach abbrev {Mrs vs Gens Gen Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec
+        ca bap St Mt Jr} {
         # Turn "... Mrs. Jones" into "... Mrs@ Jones"
         regsub -all "\\m($abbrev)\\." $para {\1@} para
     }
@@ -2452,9 +2457,9 @@ proc FirstSentence {para} {
 }
 proc FirstSentenceTest {} {
     set tests {
-        "This is a test."
-        "Is this a test?"
-        "This is a test!"
+        "This is a test. Lorem ipsum."
+        "Is this a test? Lorem ipsum."
+        "This is a test! Lorem ipsum."
         "This is a simple test. Lorem ipsum."
         "Is this a question? Lorem ipsum."
         "This is a test! Lorem ipsum."
@@ -2490,7 +2495,12 @@ proc FirstSentenceTest {} {
         "Fatinitza is an opera by Richard Genée. Lorem ipsum."
         "The JFK Library by I. M. Pei at dusk. Lorem ipsum."
         "Azores juniper occurs at altitude up to 1,500 m. Lorem ipsum."
-        "The Church of St. Augustine and St. John was founded around 1180. Lorem ipsum"
+        "The Church of St. Augustine and St. John was founded around 1180. Lorem ipsum."
+        "A Storm in the Rocky Mountains, Mt. Rosalie is an oil painting. Lorem ipsum."
+        "John Doe Jr. was a man. Lorem ipsum."
+    }
+    set fails {
+        "An image of the first Space Shuttle Mission, STS-1. Lorem ipsum."
     }
 
     set success True
@@ -2506,6 +2516,7 @@ proc FirstSentenceTest {} {
             set success False
         }
     }
+
     if {$success} {
         puts "all tests pass"
     }
@@ -3639,7 +3650,6 @@ proc main {} {
     ::POTD::SetLogger ::Logger
 
     set arrow "\u27a1"
-    # set arrow "\u25b6\uFE0F"
     set msg ""
     append msg "To get started:\n"
     append msg "    $arrow Load image from Wikipedia PotD\n"

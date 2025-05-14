@@ -142,7 +142,7 @@ proc ::Triangle::_CutShape {idx puzzle} {
     }
 
     $master_tile write $master_ifile -format $SQ(format)
-    exec convert -size ${w}x${h} xc:none -fill white \
+    exec magick -size ${w}x${h} xc:none -fill white \
         -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
     image create photo $good_tile -file $good_ifile
 
@@ -195,7 +195,7 @@ proc ::Triangle::_MakeFrame {} {
     set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
     $SQ(img) write $image_ifile -format $SQ(format)
 
-    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+    exec magick -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
         "-draw" "polygon $xy" \
         $image_ifile -compose SrcOut -composite $frame_ifile
     image create photo $frame_iname -file $frame_ifile
@@ -229,14 +229,14 @@ proc ::Triangle::_MakeTemplates {} {
 
         if {$shape eq $POINT_UP} {
             set xy "0,$h $xc,0 $w,$h"
-            exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+            exec magick -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
                 -stroke $SQ(color,shade1) -draw "line 0,$h $xc,0" \
                 -stroke $SQ(color,shade2) -draw "line $xc,0 $w,$h" \
                 -stroke $SQ(color,shade2) -draw "line $w,$h 0,$h" \
                 $template_ifile
         } else {
             set xy "0,0 $w,0 $xc,$h"
-            exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+            exec magick -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
                 -stroke $SQ(color,shade1) -draw "line 0,0 $w,0" \
                 -stroke $SQ(color,shade1) -draw "line 0,0 $xc,$h" \
                 -stroke $SQ(color,shade2) -draw "line $xc,$h $w,0" \
@@ -244,15 +244,15 @@ proc ::Triangle::_MakeTemplates {} {
         }
         image create photo $active_template -file $template_ifile
 
-        exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+        exec magick -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
             -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
         image create photo $drag_template -file $template_ifile
 
-        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,explode) -fill $SQ(color,explode) \
+        exec magick -size ${w}x${h} xc:none -stroke $SQ(color,explode) -fill $SQ(color,explode) \
             -draw "polygon $xy" $template_ifile
         image create photo $explode_template -file $template_ifile
 
-        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,shade1) -fill $SQ(color,quest) \
+        exec magick -size ${w}x${h} xc:none -stroke $SQ(color,shade1) -fill $SQ(color,quest) \
             -draw "polygon $xy" $template_ifile
         image create photo $quest_template -file $template_ifile
         ::Baseshape::_AddQuestionMark $quest_template

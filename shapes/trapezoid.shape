@@ -117,7 +117,7 @@ proc ::Trapezoid::_CutShape {idx puzzle} {
     }
 
     $master_tile write $master_ifile -format $SQ(format)
-    exec convert -size ${w}x${h} xc:none -fill white \
+    exec magick -size ${w}x${h} xc:none -fill white \
         -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
     image create photo $good_tile -file $good_ifile
 
@@ -164,7 +164,7 @@ proc ::Trapezoid::_MakeTemplates {} {
         lassign $pos x0 y0 x1 y1 x2 y2 x3 y3
         set xy "$x0,$y0 $x1,$y1 $x2,$y2 $x3,$y3"
 
-        exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+        exec magick -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
             -stroke $SQ(color,shade1) -draw "line $x3,$y3 $x0,$y0" \
             -stroke $SQ(color,shade1) -draw "line $x0,$y0 $x1,$y1" \
             -stroke $SQ(color,shade2) -draw "line $x1,$y1 $x2,$y2" \
@@ -172,15 +172,15 @@ proc ::Trapezoid::_MakeTemplates {} {
             $template_ifile
         image create photo $active_template -file $template_ifile
 
-        exec convert -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
+        exec magick -size ${w}x${h} xc:none  -fill transparent -strokewidth $SQ(strokewidth) \
             -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
         image create photo $drag_template -file $template_ifile
 
-        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,explode) -fill $SQ(color,explode) \
+        exec magick -size ${w}x${h} xc:none -stroke $SQ(color,explode) -fill $SQ(color,explode) \
             -draw "polygon $xy" $template_ifile
         image create photo $explode_template -file $template_ifile
 
-        exec convert -size ${w}x${h} xc:none -stroke $SQ(color,shade1) -fill $SQ(color,quest) \
+        exec magick -size ${w}x${h} xc:none -stroke $SQ(color,shade1) -fill $SQ(color,quest) \
             -draw "polygon $xy" $template_ifile
         image create photo $quest_template -file $template_ifile
         ::Baseshape::_AddQuestionMark $quest_template
@@ -219,7 +219,7 @@ proc ::Trapezoid::_MakeFrame {frame_iname} {
     set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
     $SQ(img) write $image_ifile -format $SQ(format)
 
-    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+    exec magick -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
         "-draw" "polygon $xy" \
         $image_ifile -compose SrcOut -composite $frame_ifile
     image create photo $frame_iname -file $frame_ifile

@@ -149,7 +149,7 @@ proc ::Diamond::_ExactShape {master_tile good_tile} {
     set h $SQ(sz,h)
 
     $master_tile write $master_ifile -format $SQ(format)
-    exec convert -size ${w}x${h} xc:none -fill white \
+    exec magick -size ${w}x${h} xc:none -fill white \
         -draw "polygon $xy" $master_ifile -compose SrcIn -composite $good_ifile
     image create photo $good_tile -file $good_ifile
 
@@ -193,7 +193,7 @@ proc ::Diamond::_MakeFrame {} {
     set image_ifile [file join $SQ(image,dir) "image$SQ(ext)"]
     $SQ(img) write $image_ifile -format $SQ(format)
 
-    exec convert -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
+    exec magick -size ${SQ(w)}x${SQ(h)} xc:none -fill white \
         "-draw" "polygon $xy" \
         $image_ifile -compose SrcOut -composite $frame_ifile
     image create photo $frame_iname -file $frame_ifile
@@ -223,7 +223,7 @@ proc ::Diamond::_MakeTemplates {} {
     set explode_template $TEMPLATES(explode)
     set quest_template $TEMPLATES(quest)
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
         -stroke $SQ(color,shade1) -draw "line 0,$yc $xc,0" \
         -stroke $SQ(color,shade1) -draw "line 0,$yc $xc,$h" \
         -stroke $SQ(color,shade2) -draw "line $xc,$h $w,$yc" \
@@ -231,15 +231,15 @@ proc ::Diamond::_MakeTemplates {} {
         $template_ifile
     image create photo $active_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill transparent \
         -stroke $SQ(color,drag) -draw "polygon $xy" $template_ifile
     image create photo $drag_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,explode) \
         -stroke $SQ(color,explode) -draw "polygon $xy" $template_ifile
     image create photo $explode_template -file $template_ifile
 
-    exec convert -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
+    exec magick -size ${w}x${h} xc:none -strokewidth $SQ(strokewidth) -fill $SQ(color,quest) \
         -stroke $SQ(color,shade1) -draw "polygon $xy" $template_ifile
     image create photo $quest_template -file $template_ifile
     ::Baseshape::_AddQuestionMark $quest_template

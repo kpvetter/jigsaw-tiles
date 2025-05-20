@@ -16,6 +16,8 @@ exit
 #  check for animated GIF: Aug 11, 2009 Wikipedia  potd_2009_08_11_w.gif
 #   potd_2012_12_21_w.gif potd_2023_08_01_w.gif
 #
+# DONE
+#   made tallymarks optional
 #
 # BUGS:
 # Timer: pause while "You ran out of lives!" dialog is up
@@ -105,6 +107,7 @@ set ST(difficulty,raw) 0
 set ST(inifile,onoff) 1
 set ST(preview,onoff) 1
 set ST(tallyfile,onoff) off   ;# Set true in ini file to keep a log of every potd image downloaded
+set ST(tallymarks,onoff) 1
 set ST(last) ""
 
 set STATS(pretty,time) "00:00"
@@ -2442,7 +2445,7 @@ proc FirstSentence {para} {
 
     # Abbreviations that prematurely end a sentence
     foreach abbrev {Mrs vs Gens Gen Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec
-        ca bap St Mt Jr} {
+        ca bap St Mt Jr No Op} {
         # Turn "... Mrs. Jones" into "... Mrs@ Jones"
         regsub -all "\\m($abbrev)\\." $para {\1@} para
     }
@@ -2498,6 +2501,7 @@ proc FirstSentenceTest {} {
         "The Church of St. Augustine and St. John was founded around 1180. Lorem ipsum."
         "A Storm in the Rocky Mountains, Mt. Rosalie is an oil painting. Lorem ipsum."
         "John Doe Jr. was a man. Lorem ipsum."
+        "A copy of Beethoven's Piano Sonata No. 28, Op. 101 in his own hand. Lorem ipsum."
     }
     set fails {
         "An image of the first Space Shuttle Mission, STS-1. Lorem ipsum."
@@ -2946,6 +2950,8 @@ proc ::Magic::Dialog {} {
         $left.scale config -state disabled
         set ST(alwaysResize,onoff) 0
     }
+    ::ttk::checkbutton $left.tallymarks -text "Tally marks" -variable ST(tallymarks,onoff) \
+        -style $styling -command HideOrShowTallyMarks
     ::ttk::checkbutton $left.ini -text "Save settings" -variable ST(inifile,onoff) \
         -style $styling -command SaveInifile
 
@@ -2961,6 +2967,7 @@ proc ::Magic::Dialog {} {
     ::tooltip::tooltip $left.image "Copy PotD image URL to clipboard"
     ::tooltip::tooltip $left.potdname "Copy PotD encoded name to clipboard"
     ::tooltip::tooltip $left.preview "Preview image while loading it"
+    ::tooltip::tooltip $left.tallymarks "Show tally marks"
     ::tooltip::tooltip $left.shadows "Toggle color or black & white tile shadows"
     ::tooltip::tooltip $left.scale "Always resize images to fit using ImageMagick"
     ::tooltip::tooltip $left.ini "Save game state between sessions"
@@ -2980,6 +2987,7 @@ proc ::Magic::Dialog {} {
     grid $left.msg1 -sticky ew
     grid $left.msg2 -sticky ew
     grid $left.preview -sticky ew -pady {.3i 0}
+    grid $left.tallymarks -sticky ew
     grid $left.shadows -sticky ew
     grid $left.scale -sticky ew
     grid $left.ini -sticky ew
@@ -3753,6 +3761,15 @@ proc TallyMarks {solved} {
     }
 
     CanvasColoredString tallymarks 0 0 $::big_font $tuples
+    HideOrShowTallyMarks
+}
+proc HideOrShowTallyMarks {} {
+    global ST
+    if {$ST(tallymarks,onoff)} {
+        .c raise tallymarks
+    } else {
+        .c lower tallymarks
+    }
 }
 proc CanvasColoredString {tag x y font tuples} {
     # Draws text at x,y with given tag & font and tuples is list of {text color}

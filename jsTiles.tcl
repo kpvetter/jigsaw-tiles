@@ -30,6 +30,7 @@ exit
 #   - image: https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Ornamental_Alphabet_-_16th_Century.svg/1280px-Ornamental_Alphabet_-_16th_Century.svg.png
 #
 # Other image sources:
+#  https://www.loc.gov/research-centers/prints-and-photographs/about-this-research-center/
 #  download random Wikimedia Commons images:
 #      https://commons.wikimedia.org/wiki/Special:Random/File
 #  random Wikipedia article main image
@@ -2037,12 +2038,15 @@ proc GetPotDImage {{service ""} {override ""}} {
     set seconds [clock scan $date -format %Y/%m/%d]
     set when [clock format $seconds -format "%A %B %d, %Y"]
 
+    set S(potd,current) [EncodePotDFilename $service $date ".???"]
+    Logger $S(potd,current)
+
     if {$status == 0} {
         set emsg [dict get $meta emsg]
-        set txt "Error downloading $service PotD\nfor $when:\n\"$emsg\""
         if {[string first "Unterminated element 'video'" $emsg] > -1} {
-            set txt "PotD is a video"
+            set emsg "PotD is a video"
         }
+        set txt "Error downloading $service PotD\nfor $when:\n\"$emsg\""
         destroy .status
         Logger $txt emsg
         ShowStatus "PotD Fetch Error" $txt button=Again
@@ -2060,8 +2064,8 @@ proc GetPotDImage {{service ""} {override ""}} {
     _DownloadBestSize $all $fitness
 
     set S(local,current) ""
-    set S(potd,current) [EncodePotDFilename $service $date $S(img,url)]
-    Logger $S(potd,current)
+
+    set S(potd,current) [EncodePotDFilename $service $date [file extension $S(img,url)]]
     set potd_desc [dict get $meta desc]
     regsub -all {\s\s+} $potd_desc " " potd_desc
     set short_desc [FirstSentence $potd_desc]
@@ -2390,12 +2394,11 @@ proc BuildNextImageList {{dirname ""}} {
     set txt "Select next image\nfrom last directory\n[llength $S(local,images)] images"
     ::tooltip::tooltip .buttons.next $txt
 }
-proc EncodePotDFilename {service date url} {
+proc EncodePotDFilename {service date extension} {
     # Convert service/date into a canonical filename
     set service [string tolower [string index $service 0]]
-    set ext [file extension $url]
     lassign [split $date "/"] year month day
-    return [format "potd_%04d_%02d_%02d_%s%s" $year $month $day $service $ext]
+    return [format "potd_%04d_%02d_%02d_%s%s" $year $month $day $service $extension]
 }
 
 proc DecodePotDFilename {fname} {
@@ -2431,7 +2434,7 @@ proc FirstSentence {para} {
     # All capital words that can end a sentence
     set ewords {
         USA UTC WW1 WW2 WWI WWII "World\\sWar\\sI" "World\\sWar\\sII"
-        "World\\sWar\\s1" "World\\sWar\\s2" "II" "CE" "FC" "D.C." "BC"
+        "World\\sWar\\s1" "World\\sWar\\s2" "II" "CE" "FC" "D.C." "D.C" "BC"
         "\[0-9,\]+ m"
     }
     foreach eword $ewords {
@@ -2444,8 +2447,8 @@ proc FirstSentence {para} {
     regsub $re $para {\1@aa.} para
 
     # Abbreviations that prematurely end a sentence
-    foreach abbrev {Mrs vs Gens Gen Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec
-        ca bap St Mt Jr No Op} {
+    foreach abbrev {Mrs vs Gens Gen Capt Jan Feb Mar Apr May Jun Jul Aug Sep Sept Oct Nov Dec
+        ca bap St Mt Jr No Op Lt} {
         # Turn "... Mrs. Jones" into "... Mrs@ Jones"
         regsub -all "\\m($abbrev)\\." $para {\1@} para
     }
@@ -2491,6 +2494,7 @@ proc FirstSentenceTest {} {
         "Photograph ca. 1847 hand-tinted. Lorem ipsum."
         "Martin Ryckaert (bap. 1587 – 1631) was a Flemish painter. Lorem ipsum."
         "Maya Lin's monument Washington, D.C.. Lorem ipsum."
+        "Abraham Lincoln in Washington, D.C. Lorem ipsum."
         "Somewhere in North Africa. Lorem ipsum."
         "The Complex is dated to 1950 BC. Lorem ipsum."
         "Dennis Schröder ... (NBA). Lorem ipsum."
@@ -2502,11 +2506,12 @@ proc FirstSentenceTest {} {
         "A Storm in the Rocky Mountains, Mt. Rosalie is an oil painting. Lorem ipsum."
         "John Doe Jr. was a man. Lorem ipsum."
         "A copy of Beethoven's Piano Sonata No. 28, Op. 101 in his own hand. Lorem ipsum."
+        "This photo of Lt. F.W. \"Mike\" Hunter wearing a flight suit. Lorem ipsum."
+        "Capt. Lowell H. Smith and Lt. John P. Richter performing the aerial refueling. Lorem ipsum."
     }
     set fails {
         "An image of the first Space Shuttle Mission, STS-1. Lorem ipsum."
     }
-
     set success True
     foreach datum $tests {
         set actual [FirstSentence $datum]

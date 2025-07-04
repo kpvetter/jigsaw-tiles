@@ -148,6 +148,14 @@ proc ::POTD::RandomImage {service fitness} {
 
     return [list $meta $resolutions]
 }
+proc FixVoidTag {html} {
+    # tdom doesn't recognize <source> and <track> as being void tags
+    # so throws an error when it doesn't see its closing tag
+    regsub -all {(<sourc.*?[^/])>} $html {\1/>} html
+    regsub -all {(<trac.*?[^/])>} $html {\1/>} html
+    return $html
+}
+
 proc ::POTD::_ExtractDayPage {month_url year month day} {
     # Scrape the potd template for the url to the correct day's image
 
@@ -155,6 +163,7 @@ proc ::POTD::_ExtractDayPage {month_url year month day} {
     ::POTD::_Logger "Extracting day $day from monthly page"
     set html [::POTD::DownloadUrl $month_url]
 
+    set html [FixVoidTag $html]
     set n [catch {set dom [::dom parse -html $html]} emsg]
     if {$n} {::POTD::_Error "Bad HTML: $emsg" }
 

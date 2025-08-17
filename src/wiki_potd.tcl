@@ -19,7 +19,7 @@ proc ::POTD::RandomPOTD {service {fitness {}}} {
     lassign [::POTD::_RandomDate $service] year month day
     return [::POTD::GetPOTD $service $year $month $day $fitness]
 }
-proc ::POTD::_UrlHost url {
+proc ::POTD::_UrlHost {url} {
     # Extracts the host part of a URL
 
     set n [regexp {^https?://[^/]*} $url host]
@@ -42,7 +42,7 @@ proc ::POTD::_ExtractResolutions {day_url {html {}}} {
     }
     set host [::POTD::_UrlHost $day_url]
     set n [catch {set dom [::dom parse -html $html]} emsg]
-    if {$n} {::POTD::_Error "Bad HTML: $emsg" }
+    if {$n} { set ::HTML $html ; ::POTD::_Error "Bad HTML: $emsg" }
 
     set xpath {//*[contains(@class,"mw-thumbnail-link")]}
     set a_nodes [$dom selectNodes $xpath]
@@ -66,22 +66,28 @@ proc ::POTD::_ExtractResolutions {day_url {html {}}} {
     ::POTD::_Logger "$sizes"
     return $all
 }
-proc ::POTD::_lpick llist {
+proc ::POTD::_lpick {llist} {
     # Selects random item from list
     set len [llength $llist]
     set idx [expr {int(rand() * $len)}]
     return [lindex $llist $idx]
 }
-proc ::POTD::_MakeValidHtml html {
-    # As of March 2025, the Wikipedia html contains: <picture><source>....</picture>
-    # which our dom parser can't parse.
+proc ::POTD::_MakeValidHtml {html} {
+    # As of March 2025, the Wikipedia html contains <source> and <track> tags
+    # Technically they are void tags and do not need a closing tag,
+    # but tdom throws an error if it sees an unclosed source or track tag.
+    # As a fix, we turn <source src="...."> into <source src="..."/>
 
-    # For now just comment out all <picture>...</picture> text
-    regsub -all {(<picture.*?</picture>)} $html {<!-- \1 -->} html
+    regsub -all {(<source[^>]*?[^/])>} $html {\1/>} html
+    regsub -all {(<track[^>]*?[^/])>} $html {\1/>} html
     return $html
 
+    # regsub -all {<video.*?</video>} $html {<video></video>} html
+    # regsub -all {<audio.*?</audio>} $html {<audio></audio>} html
+    # regsub -all {<picture.*?</picture>} $html {<picture></picture>} html
+    # return $html
 }
-proc ::POTD::_range args {
+proc ::POTD::_range {args} {
     # Akin to python's range command, except:
     # * accepts numbers of form a, a+b or a-b
     # * cannot handle downward ranges
@@ -105,7 +111,7 @@ proc ::POTD::_range args {
     }
     return $result
 }
-proc ::POTD::SetLogger func {
+proc ::POTD::SetLogger {func} {
     # Installs custom logger: a function which takes one argument: msg
     set ::POTD::USER_LOGGER $func
 }
@@ -148,14 +154,6 @@ proc ::POTD::RandomImage {service fitness} {
 
     return [list $meta $resolutions]
 }
-proc FixVoidTag {html} {
-    # tdom doesn't recognize <source> and <track> as being void tags
-    # so throws an error when it doesn't see its closing tag
-    regsub -all {(<sourc.*?[^/])>} $html {\1/>} html
-    regsub -all {(<trac.*?[^/])>} $html {\1/>} html
-    return $html
-}
-
 proc ::POTD::_ExtractDayPage {month_url year month day} {
     # Scrape the potd template for the url to the correct day's image
 
@@ -163,9 +161,8 @@ proc ::POTD::_ExtractDayPage {month_url year month day} {
     ::POTD::_Logger "Extracting day $day from monthly page"
     set html [::POTD::DownloadUrl $month_url]
 
-    set html [FixVoidTag $html]
     set n [catch {set dom [::dom parse -html $html]} emsg]
-    if {$n} {::POTD::_Error "Bad HTML: $emsg" }
+    if {$n} { set ::HTML $html ; ::POTD::_Error "Bad HTML: $emsg" }
 
     # Search for id with the day tag: usually id="$day"
     # Some POTD are multiple images, with id="$day/#"
@@ -236,7 +233,7 @@ proc ::POTD::_ExtractDayPage {month_url year month day} {
     }
     return [list $day_url $desc]
 }
-proc ::POTD::_RandomDate service {
+proc ::POTD::_RandomDate {service} {
     # Picks a random date in the range of available POTD images
 
     # Wikimedia Commons starts 2004/11
@@ -321,7 +318,7 @@ proc ::POTD::_GetPOTD {service year month day {fitness {}}} {
                   status $::POTD::SUCCESS_STATUS bestfit $bestfit service $service emsg ""]
     return [list $meta $resolutions]
 }
-proc ::POTD::_RemoveInvisibleText node {
+proc ::POTD::_RemoveInvisibleText {node} {
     foreach attr {"display:none" "display: none"} {
         set xpath ".//*\[contains(@style,'$attr')\]"
         while {True} {
@@ -372,16 +369,16 @@ proc ::POTD::_FixUrl {url host} {
     }
     return $url
 }
-proc ::POTD::_Error msg {
+proc ::POTD::_Error {msg} {
     # Logs then throws an error
 
     catch {::POTD::_Logger $msg}
     error $msg
 }
-proc ::POTD::_ExtractInfoBoxImage html {
+proc ::POTD::_ExtractInfoBoxImage {html} {
     # On a random Wikipedia page, use the image in the infobox
     set n [catch {set dom [::dom parse -html $html]}]
-    if {$n} {::POTD::_Error "Bad HTML: $emsg" }
+    if {$n} { set ::HTML $html ; ::POTD::_Error "Bad HTML: $emsg" }
 
     # <td colspan="2" class="infobox-image">
     set infobox [$dom selectNodes {//td[contains(@class,"infobox-image")]/span/a}]
@@ -391,7 +388,7 @@ proc ::POTD::_ExtractInfoBoxImage html {
     set url [string cat https://en.wikipedia.org $href]
     return $url
 }
-proc ::POTD::DownloadUrl url {
+proc ::POTD::DownloadUrl {url} {
     # Downloads a given URL
     global DOWNLOADED_URL
 
@@ -417,12 +414,12 @@ proc ::POTD::DownloadUrl url {
     }
     ::POTD::_Error "failed to download $url, too many redirects"
 }
-proc ::POTD::_ExtractDescriptionDate html {
+proc ::POTD::_ExtractDescriptionDate {html} {
     # Extract description and date from the day page, the data on
     # the month page is typically better so this is a fall back.
 
     set n [catch {set dom [::dom parse -html $html]}]
-    if {$n} {::POTD::_Error "Bad HTML: $emsg" }
+    if {$n} { set ::HTML $html ; ::POTD::_Error "Bad HTML: $emsg" }
 
     lassign {"" ""} date desc
     set dateNode [$dom selectNodes {.//*[@id="fileinfotpl_date"]/following-sibling::*}]
